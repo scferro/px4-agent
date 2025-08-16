@@ -1,88 +1,64 @@
 # PX4 Agent
 
-Intelligent drone mission planning using LangChain and Granite 3.3 2B model running on Ollama.
+Intelligent drone mission planning agent using natural language. Built with LangChain and Qwen3:1.7b model running on Ollama.
 
 ## Quick Start
 
 ### Prerequisites
-1. **Ollama running with Granite 3.3 2B**
+1. **Ollama with Qwen3:1.7b model**
 ```bash
 # Install and start Ollama
 curl -fsSL https://ollama.com/install.sh | sh
 ollama serve &
 
 # Download model
-ollama pull granite3.3:2b
+ollama pull qwen3:1.7b
 ```
 
 2. **Install Python dependencies**
 ```bash
-cd /home/stephen/px4-agent/px4-agent
 pip install -r requirements.txt
 ```
 
-### Test the Agent
+### Usage
 
-1. **Check system status**
+Launch interactive mission planning:
 ```bash
-python run.py status
+# Mission mode - Build complete missions interactively
+python3 cli.py mission
+
+# Command mode - Single commands with reset after each
+python3 cli.py command
+
+# Verbose mode - Show agent reasoning
+python3 cli.py -v mission
 ```
 
-2. **Test command mode**
-```bash
-python run.py command "takeoff to 15 meters"
-```
+## Core Features
 
-3. **Test mission mode**
-```bash
-python run.py mission new "Create a survey mission with takeoff to 20m, 3 waypoints, then RTL"
-```
+### Mission Tools
+- **add_takeoff** - Launch drone to specified altitude
+- **add_waypoint** - Navigate to GPS coordinates or relative positions
+- **add_loiter** - Create circular orbit patterns with specified radius
+- **add_rtl** - Return to launch and land
+- **update_mission_item** - Modify position, altitude, radius of existing items
+- **delete_mission_item** - Remove items from mission
 
-### Usage Examples
+### Position Specification
+- **GPS Coordinates**: `"waypoint at 37.7749, -122.4194"`
+- **Relative Positioning**: `"2 miles north"`, `"500 feet southeast"`
+- **MGRS Grid**: `"waypoint at MGRS 11SMT1234567890"`
 
-**Command Mode** (single actions):
-```bash
-python run.py command "add waypoint at 37.7749, -122.4194, 50 meters"
-python run.py command "add return to launch"
-```
+## Modes
 
-**Mission Mode** (multi-step):
-```bash
-python run.py mission new "Plan a rectangular survey pattern at 50m altitude with 4 corners"
-```
+### Mission Mode
+- **Interactive mission building** with conversation history
+- **Persistent state** - previous commands remembered
+- **Complete mission planning** with validation
+- Use for: Complex multi-step missions
 
-**Update Mission**:
-```bash
-python run.py mission update "add a 30-second loiter before landing"
-```
-
-**Verbose Mode** (show model reasoning):
-```bash
-python run.py --verbose mission new "Create takeoff, loiter 30 seconds, then land"
-```
-
-## How It Works
-
-1. **Agent receives request** → Plans using mission tools
-2. **Agent calls `show_mission_for_approval`** → User reviews mission
-3. **User approves** → Mission saved to `current_mission.json`
-4. **User rejects** → Agent updates mission based on feedback
-5. **Updates** → Always work with `current_mission.json`
-
-## Key Features
-
-- ✅ RTL (Return to Launch) tool included
-- ✅ Mission approval workflow with file save
-- ✅ Chat history maintained for updates  
-- ✅ Safety validation built-in
-- ✅ No direct flight controller access (manual upload required)
-
-## File Structure
-```
-px4-agent/
-├── tools/mission_tools.py    # 8 core tools including RTL
-├── agent.py                  # Main agent with 3 modes
-├── cli.py                   # Command line interface
-├── missions/                # Approved missions saved here
-└── config/                  # Settings and prompts
-```
+### Command Mode  
+- **Single command execution** with reset after each response
+- **Fresh state** - no memory between commands
+- **Quick operations** with relaxed validation
+- Use for: Testing individual commands, simple operations

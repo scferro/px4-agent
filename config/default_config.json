@@ -7,15 +7,5 @@
     "top_k": 20,
     "timeout": 60,
     "max_tokens": 32768
-  },
-  "agent": {
-    "max_mission_items": 100,
-    "auto_validate": true,
-    "verbose_default": false,
-    "require_takeoff": true,
-    "single_takeoff_only": true,
-    "single_rtl_only": true,
-    "takeoff_must_be_first": true,
-    "rtl_must_be_last": true
   }
 }
