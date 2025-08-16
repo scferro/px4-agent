@@ -1,0 +1,21 @@
+# Core dependencies
+langchain>=0.3.0
+langchain-community>=0.3.0
+langchain-core>=0.3.0
+langchain-ollama>=0.2.0
+
+# Model interface
+requests>=2.31.0
+
+# CLI and output formatting
+rich>=13.0.0
+typer>=0.9.0
+
+# Data validation and serialization
+pydantic>=2.0.0
+
+# Standard library enhancements
+python-dateutil>=2.8.0
+
+# Optional: For enhanced JSON handling
+ujson>=5.0.0mgrs
