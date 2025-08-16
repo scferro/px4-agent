@@ -26,9 +26,9 @@ class WaypointInput(BaseModel):
     # Altitude specification
     altitude: Optional[float] = Field(None, description="Flight altitude for this waypoint. Only specify if user mentions altitude like 'fly at 200 feet' or 'waypoint at 100 meters altitude'. Leave None if not specified.")
     altitude_units: Optional[str] = Field(None, description="Units for altitude. Extract from user input: 'meters'/'m' or 'feet'/'ft'. Example: 'fly at 200 feet' uses 'feet'.")
-    
+        
     # Insertion position
-    insert_at: Optional[int] = Field(None, description="Position to insert this waypoint in the mission (1=first item, 2=second item, etc.). Extract from phrases like 'insert waypoint at position 3', 'add as first item', 'make this the second command'. Leave None to add at the end of the mission.")
+    insert_at: Optional[int] = Field(None, description="Position to insert this loiter in the mission (1=first item, 2=second item, etc.). Use when you want to add the loiter NOT at the end of the mission. Extract from phrases like 'insert waypoint at position 3', 'add as first item', 'make this the second command'. Set to 0 or omit to add at the end of the mission.")
 
 
 class AddWaypointTool(PX4ToolBase):

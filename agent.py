@@ -97,12 +97,15 @@ class PX4Agent:
         if mission and mission.items:
             mission_state = f"Current mission has {len(mission.items)} items"
         
-        system_prompt = get_system_prompt("mission_new")
+        # Get base system prompt and enhance with current mission state
+        base_system_prompt = get_system_prompt("mission_new")
+        mission_state_summary = self.mission_manager.get_mission_state_summary()
+        enhanced_system_prompt = f"{base_system_prompt}{mission_state_summary}"
         
         try:
             # LangGraph uses messages instead of system_prompt/input format
             messages = [
-                SystemMessage(content=system_prompt),
+                SystemMessage(content=enhanced_system_prompt),
                 HumanMessage(content=user_input)
             ]
             
@@ -128,8 +131,7 @@ class PX4Agent:
                     msg_type = type(msg).__name__
                     print(f"{i}. {msg_type}:")
                     if hasattr(msg, 'content') and msg.content:
-                        content_preview = msg.content
-                        print(f"   Content: {content_preview}")
+                        print(f"   Content: {msg.content}")
                     if hasattr(msg, 'tool_calls') and msg.tool_calls:
                         print(f"   Tool calls: {msg.tool_calls}")
                     if hasattr(msg, 'name') and msg.name:
@@ -182,8 +184,7 @@ class PX4Agent:
                         msg_type = type(msg).__name__
                         print(f"{i}. {msg_type}:")
                         if hasattr(msg, 'content') and msg.content:
-                            content_preview = msg.content
-                            print(f"   Content: {content_preview}")
+                            print(f"   Content: {msg.content}")
                         if hasattr(msg, 'tool_calls') and msg.tool_calls:
                             print(f"   Tool calls: {msg.tool_calls}")
                         if hasattr(msg, 'name') and msg.name:

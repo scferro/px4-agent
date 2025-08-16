@@ -32,7 +32,7 @@ class LoiterInput(BaseModel):
     altitude_units: Optional[str] = Field(None, description="Units for orbit altitude: 'meters'/'m' or 'feet'/'ft'. Example: 'orbit at 150 feet' uses 'feet'.")
     
     # Insertion position
-    insert_at: Optional[int] = Field(None, description="Position to insert this loiter in the mission (1=first item, 2=second item, etc.). Extract from phrases like 'insert orbit at position 2', 'add loiter as first item', 'make this the third command'. Leave None to add at the end of the mission.")
+    insert_at: Optional[int] = Field(None, description="Position to insert this loiter in the mission (1=first item, 2=second item, etc.). Use when you want to add the loiter NOT at the end of the mission. Extract from phrases like 'insert orbit at position 2', 'add loiter as first item', 'make this the third command'. Set to 0 or omit to add at the end of the mission.")
 
 
 class AddLoiterTool(PX4ToolBase):

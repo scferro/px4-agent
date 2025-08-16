@@ -19,21 +19,18 @@ class TakeoffInput(BaseModel):
     # Target altitude - required parameter
     altitude: Optional[float] = Field(None, description="Target takeoff altitude that drone will climb to. Extract from phrases like 'takeoff to 250 feet' (altitude=250), 'launch to 100 meters' (altitude=100), 'take off to 20m' (altitude=20). This sets the flight altitude for the mission.")
     altitude_units: Optional[str] = Field(None, description="Units for takeoff altitude. Extract from user input: 'meters'/'m' or 'feet'/'ft'. Example: 'takeoff to 250 feet' uses 'feet'.")
-    
-    # Insertion position
-    insert_at: Optional[int] = Field(None, description="Position to insert this takeoff in the mission (1=first item, 2=second item, etc.). Extract from phrases like 'insert takeoff at position 1', 'add takeoff as first item'. Leave None to add at the end of the mission.")
 
 
 class AddTakeoffTool(PX4ToolBase):
     name: str = "add_takeoff"
-    description: str = "Add takeoff command to launch drone from ground to flight altitude. Use when user wants drone to take off, launch, or lift off. Typically the first command in any mission. Use for commands like 'takeoff', 'launch', 'lift off', especially when altitude is specified like 'takeoff to 200 feet', 'launch to 100 meters'."
+    description: str = "Add takeoff command to launch drone from ground to flight altitude. Always inserted as the FIRST mission item. Use when user wants drone to take off, launch, or lift off. Use for commands like 'takeoff', 'launch', 'lift off', especially when altitude is specified like 'takeoff to 200 feet', 'launch to 100 meters'."
     args_schema: type = TakeoffInput
     
     def __init__(self, mission_manager):
         super().__init__(mission_manager)
     
     def _run(self, latitude: Optional[float] = None, longitude: Optional[float] = None, 
-             altitude: Optional[float] = None, altitude_units: Optional[str] = None, insert_at: Optional[int] = None) -> str:
+             altitude: Optional[float] = None, altitude_units: Optional[str] = None) -> str:
         # Create response
         response = ""
 
@@ -57,7 +54,6 @@ class AddTakeoffTool(PX4ToolBase):
             item = self.mission_manager.add_takeoff(
                 actual_lat, actual_lon, actual_alt, 
                 altitude_units=altitude_units,  # Store EXACTLY what model provided
-                insert_at=insert_at,
                 original_altitude=altitude,
                 original_latitude=latitude,
                 original_longitude=longitude

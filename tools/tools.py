@@ -113,28 +113,8 @@ class PX4ToolBase(BaseTool):
         return display
     
     def _get_mission_state_summary(self) -> str:
-        """Get brief summary of current mission state"""
-        mission = self.mission_manager.get_mission()
-        if not mission or not mission.items:
-            return ""
-        
-        summary = f"\n\nCURRENT MISSION STATE: {len(mission.items)} items:"
-        for i, item in enumerate(mission.items):
-            cmd_name = self._get_command_name(getattr(item, 'command_type', 'unknown'))
-            item_desc = f"\n  {i+1}. {cmd_name}"
-            
-            # Add key parameters
-            if hasattr(item, 'altitude') and item.altitude is not None:
-                alt_units = getattr(item, 'altitude_units', 'units')
-                item_desc += f" at {item.altitude} {alt_units}"
-            
-            if hasattr(item, 'radius') and item.radius is not None:
-                radius_units = getattr(item, 'radius_units', 'units')
-                item_desc += f" (radius: {item.radius} {radius_units})"
-            
-            summary += item_desc
-        
-        return summary
+        """Get brief summary of current mission state - now delegates to mission manager"""
+        return self.mission_manager.get_mission_state_summary()
     
     def _build_coordinate_description(self, latitude, longitude, mgrs, distance, heading, distance_units, relative_reference_frame):
         """Build coordinate description for responses"""

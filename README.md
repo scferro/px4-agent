@@ -1,6 +1,6 @@
 # PX4 Agent
 
-Intelligent drone mission planning agent using natural language. Built with LangChain and Qwen3:1.7b model running on Ollama.
+Intelligent drone mission planning agent using natural language. Built with LangChain and Ollama.
 
 ## Quick Start
 
@@ -12,7 +12,7 @@ curl -fsSL https://ollama.com/install.sh | sh
 ollama serve &
 
 # Download model
-ollama pull qwen3:1.7b
+ollama pull qwen3:4b-instruct
 ```
 
 2. **Install Python dependencies**
@@ -45,20 +45,20 @@ python3 cli.py -v mission
 - **delete_mission_item** - Remove items from mission
 
 ### Position Specification
-- **GPS Coordinates**: `"waypoint at 37.7749, -122.4194"`
+- **Lat/Long Coordinates**: `"37.7749, -122.4194"`
 - **Relative Positioning**: `"2 miles north"`, `"500 feet southeast"`
-- **MGRS Grid**: `"waypoint at MGRS 11SMT1234567890"`
+- **MGRS Grid**: `"MGRS 11SMT1234567890"`
 
 ## Modes
 
 ### Mission Mode
 - **Interactive mission building** with conversation history
-- **Persistent state** - previous commands remembered
+- **Persistent state** - previous request context maintained during chat
 - **Complete mission planning** with validation
 - Use for: Complex multi-step missions
 
 ### Command Mode  
 - **Single command execution** with reset after each response
-- **Fresh state** - no memory between commands
+- **Fresh state** - request context not saved between commands
 - **Quick operations** with relaxed validation
-- Use for: Testing individual commands, simple operations
+- Use for: Individual commands, simple operations

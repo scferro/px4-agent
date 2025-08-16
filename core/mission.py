@@ -142,8 +142,8 @@ class MissionManager:
         return item
     
     def add_takeoff(self, lat: float, lon: float, alt: float, 
-                   altitude_units: Optional[str] = None, insert_at: Optional[int] = None, **original_params) -> MissionItem:
-        """Add takeoff command"""
+                   altitude_units: Optional[str] = None, **original_params) -> MissionItem:
+        """Add takeoff command - always goes at the beginning"""
         mission = self._get_current_mission_or_raise()
         
         item = MissionItem(
@@ -155,7 +155,7 @@ class MissionManager:
             latitude=original_params.get('original_latitude'),
             longitude=original_params.get('original_longitude')
         )
-        return self.insert_item_at(item, insert_at)
+        return self.insert_item_at(item, 1)  # Always insert at position 1 (first)
     
     def add_waypoint(self, lat: float, lon: float, alt: float,
                     altitude_units: Optional[str] = None, insert_at: Optional[int] = None, **original_params) -> MissionItem:
@@ -174,15 +174,15 @@ class MissionManager:
         return self.insert_item_at(item, insert_at)
     
     
-    def add_return_to_launch(self, insert_at: Optional[int] = None) -> MissionItem:
-        """Add return to launch command"""
+    def add_return_to_launch(self) -> MissionItem:
+        """Add return to launch command - always goes at the end"""
         mission = self._get_current_mission_or_raise()
         
         item = MissionItem(
             seq=0,  # Will be set by insert_item_at
             command_type='rtl'  # Track what type of command this is
         )
-        return self.insert_item_at(item, insert_at)
+        return self.insert_item_at(item, None)  # None = add at end
     
     def add_loiter(self, lat: float, lon: float, alt: float,
                   radius: float, radius_units: Optional[str] = None, insert_at: Optional[int] = None, **original_params) -> MissionItem:
@@ -279,4 +279,50 @@ class MissionManager:
         
         
         return errors
+    
+    def get_mission_state_summary(self) -> str:
+        """Get brief summary of current mission state in XML format"""
+        mission = self.get_mission()
+        summary = f"\n\n<mission_state>\n<total_items>{len(mission.items)}</total_items>"
+
+        if mission and mission.items:
+            for i, item in enumerate(mission.items):
+                cmd_name = self._get_command_name(getattr(item, 'command_type', 'unknown'))
+                command_type = getattr(item, 'command_type', 'unknown')
+                
+                summary += f"\n<item_{i+1}>"
+                summary += f"\n  <type>{command_type}</type>"
+                summary += f"\n  <name>{cmd_name}</name>"
+                
+                # Add key parameters
+                if hasattr(item, 'altitude') and item.altitude is not None:
+                    alt_units = getattr(item, 'altitude_units', 'units')
+                    summary += f"\n  <altitude>{item.altitude} {alt_units}</altitude>"
+                
+                if hasattr(item, 'radius') and item.radius is not None:
+                    radius_units = getattr(item, 'radius_units', 'units')
+                    summary += f"\n  <radius>{item.radius} {radius_units}</radius>"
+                
+                # Add position info if available
+                if hasattr(item, 'latitude') and item.latitude is not None:
+                    summary += f"\n  <position>lat/lon ({item.latitude:.6f}, {getattr(item, 'longitude', 0):.6f})</position>"
+                elif hasattr(item, 'distance') and item.distance is not None and hasattr(item, 'heading') and item.heading is not None:
+                    dist_units = getattr(item, 'distance_units', 'units')
+                    ref_frame = getattr(item, 'relative_reference_frame', 'origin')
+                    summary += f"\n  <position>{item.distance} {dist_units} {item.heading} from {ref_frame}</position>"
+            
+                summary += f"\n</item_{i+1}>"
+        
+        summary += "\n</mission_state>"
+        return summary
+    
+    def _get_command_name(self, command_type: str) -> str:
+        """Get human-readable command name from type"""
+        command_map = {
+            'takeoff': "Takeoff",
+            'waypoint': "Waypoint",
+            'loiter': "Loiter",
+            'rtl': "Return to Launch"
+        }
+        return command_map.get(command_type, f"Unknown {command_type}")
     

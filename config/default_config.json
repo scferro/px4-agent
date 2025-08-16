@@ -2,9 +2,9 @@
   "model": {
     "name": "qwen3:4b-instruct",
     "base_url": "http://localhost:11434",
-    "temperature": 0.7,
-    "top_p": 0.8,
-    "top_k": 20,
+    "temperature": 0.5,
+    "top_p": 0.6,
+    "top_k": 30,
     "timeout": 60,
     "max_tokens": 32768
   }
