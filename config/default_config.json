@@ -1,34 +1,21 @@
 {
   "model": {
-    "name": "qwen3:1.7b",
+    "name": "qwen3:4b-instruct",
     "base_url": "http://localhost:11434",
-    "temperature": 0.3,
-    "top_p": 0.7,
-    "top_k": 30,
+    "temperature": 0.7,
+    "top_p": 0.8,
+    "top_k": 20,
     "timeout": 60,
-    "max_tokens": null
+    "max_tokens": 32768
   },
   "agent": {
     "max_mission_items": 100,
-    "default_altitude": 50.0,
-    "safety_checks": true,
-    "require_verification": true,
     "auto_validate": true,
-    "verbose_default": false
-  },
-  "output": {
-    "use_colors": true,
-    "show_timestamps": false,
-    "log_level": "INFO",
-    "max_output_length": 10000
-  },
-  "safety": {
-    "max_altitude": 120.0,
-    "min_altitude": 1.0,
-    "max_speed": 25.0,
-    "min_speed": 1.0,
-    "max_waypoint_distance": 10000.0,
+    "verbose_default": false,
     "require_takeoff": true,
-    "require_landing_or_rtl": true
+    "single_takeoff_only": true,
+    "single_rtl_only": true,
+    "takeoff_must_be_first": true,
+    "rtl_must_be_last": true
   }
 }

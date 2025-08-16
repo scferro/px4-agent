@@ -75,35 +75,6 @@ class OllamaInterface:
         available_models = self.list_models()
         return model in available_models
     
-    def pull_model(self, model_name: Optional[str] = None) -> bool:
-        """Pull model from Ollama registry"""
-        model = model_name or self.model_name
-        try:
-            # Use requests to pull model
-            response = requests.post(
-                f"{self.base_url}/api/pull",
-                json={"name": model},
-                timeout=300  # 5 minute timeout for model download
-            )
-            return response.status_code == 200
-        except Exception:
-            return False
-    
-    def get_model_info(self, model_name: Optional[str] = None) -> Dict[str, Any]:
-        """Get information about a specific model"""
-        model = model_name or self.model_name
-        try:
-            response = requests.post(
-                f"{self.base_url}/api/show",
-                json={"name": model},
-                timeout=10
-            )
-            if response.status_code == 200:
-                return response.json()
-            return {}
-        except Exception:
-            return {}
-    
     def test_connection(self) -> tuple[bool, str]:
         """Test connection to Ollama and model availability"""
         # Check if Ollama is running

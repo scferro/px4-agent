@@ -11,11 +11,11 @@ import os
 @dataclass
 class ModelConfig:
     """Model configuration settings"""
-    name: str = "granite3.3:2b"
+    name: str = "qwen3:1.7b"
     base_url: str = "http://localhost:11434"
-    temperature: float = 0.1
-    top_p: float = 0.9
-    top_k: int = 40
+    temperature: float = 0.3
+    top_p: float = 0.7
+    top_k: int = 30
     timeout: int = 60
     max_tokens: Optional[int] = None
 
@@ -23,56 +23,35 @@ class ModelConfig:
 class AgentConfig:
     """Agent behavior configuration"""
     max_mission_items: int = 100
-    default_altitude: float = 50.0  # meters
-    safety_checks: bool = True
-    require_verification: bool = True
     auto_validate: bool = True
     verbose_default: bool = False
-
-@dataclass
-class OutputConfig:
-    """Output formatting configuration"""
-    use_colors: bool = True
-    show_timestamps: bool = False
-    log_level: str = "INFO"
-    max_output_length: int = 10000
-
-@dataclass
-class SafetyConfig:
-    """Safety and validation configuration"""
-    max_altitude: float = 120.0  # meters
-    min_altitude: float = 1.0    # meters
-    max_speed: float = 25.0      # m/s
-    min_speed: float = 1.0       # m/s
-    max_waypoint_distance: float = 10000.0  # meters
     require_takeoff: bool = True
-    require_landing_or_rtl: bool = True
+    single_takeoff_only: bool = True
+    single_rtl_only: bool = True
+    takeoff_must_be_first: bool = True
+    rtl_must_be_last: bool = True
+
+
 
 @dataclass
 class PX4AgentSettings:
     """Complete PX4 Agent configuration"""
     model: ModelConfig
     agent: AgentConfig
-    output: OutputConfig
-    safety: SafetyConfig
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PX4AgentSettings':
         """Create settings from dictionary"""
         return cls(
             model=ModelConfig(**data.get('model', {})),
-            agent=AgentConfig(**data.get('agent', {})),
-            output=OutputConfig(**data.get('output', {})),
-            safety=SafetyConfig(**data.get('safety', {}))
+            agent=AgentConfig(**data.get('agent', {}))
         )
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert settings to dictionary"""
         return {
             'model': self.model.__dict__,
-            'agent': self.agent.__dict__,
-            'output': self.output.__dict__,
-            'safety': self.safety.__dict__
+            'agent': self.agent.__dict__
         }
     
     @classmethod
@@ -99,16 +78,8 @@ class PX4AgentSettings:
             # Return default settings
             return cls(
                 model=ModelConfig(),
-                agent=AgentConfig(),
-                output=OutputConfig(),
-                safety=SafetyConfig()
+                agent=AgentConfig()
             )
-    
-    def save(self, config_path: str):
-        """Save settings to file"""
-        Path(config_path).parent.mkdir(parents=True, exist_ok=True)
-        with open(config_path, 'w') as f:
-            json.dump(self.to_dict(), f, indent=2)
     
     def update_from_env(self):
         """Update settings from environment variables"""
@@ -121,12 +92,8 @@ class PX4AgentSettings:
             self.model.temperature = float(os.getenv('PX4_MODEL_TEMPERATURE'))
         
         # Agent settings
-        if os.getenv('PX4_MAX_ALTITUDE'):
-            self.safety.max_altitude = float(os.getenv('PX4_MAX_ALTITUDE'))
         if os.getenv('PX4_VERBOSE'):
             self.agent.verbose_default = os.getenv('PX4_VERBOSE').lower() == 'true'
-        if os.getenv('PX4_REQUIRE_VERIFICATION'):
-            self.agent.require_verification = os.getenv('PX4_REQUIRE_VERIFICATION').lower() == 'true'
 
 # Global settings instance
 _settings: Optional[PX4AgentSettings] = None

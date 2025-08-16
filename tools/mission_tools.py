@@ -22,7 +22,7 @@ class WaypointInput(BaseModel):
     distance: Optional[float] = Field(None, description="Distance value for relative positioning. Extract the number from phrases like '2 miles north' (distance=2), '500 feet east' (distance=500), '1.5 kilometers south' (distance=1.5). Always use with heading parameter.")
     heading: Optional[str] = Field(None, description="Compass direction as text. Use the exact words from user input: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Extract directly from phrases like '2 miles north' (heading='north'), '500 feet southeast' (heading='southeast'). Always use with distance parameter.")
     distance_units: Optional[str] = Field(None, description="Units for the distance parameter. Extract from user input: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km', 'nautical_miles'/'nm'. Example: '500 feet east' uses 'feet'.")
-    distance_reference_frame: Optional[str] = Field(None, description="Where to measure distance from. Use 'origin' (takeoff point) unless user specifies: 'from current position' (use 'current'), 'from last waypoint' (use 'last_waypoint'), or 'from here' (use 'current').")
+    relative_reference_frame: Optional[str] = Field(None, description="Where to measure distance from. Use 'origin' (takeoff point) unless user specifies: 'from current position' (use 'current'), 'from last waypoint' (use 'last_waypoint'), or 'from here' (use 'current').")
     
     # Altitude specification
     altitude: Optional[float] = Field(None, description="Flight altitude for this waypoint. Only specify if user mentions altitude like 'fly at 200 feet' or 'waypoint at 100 meters altitude'. Leave None if not specified.")
@@ -40,7 +40,7 @@ class LoiterInput(BaseModel):
     distance: Optional[float] = Field(None, description="Distance from reference point to orbit center. Extract number from phrases like 'orbit 2 miles north' (distance=2), 'circle 500 feet east of takeoff' (distance=500), 'loiter 1 km south of current position' (distance=1). Use with heading.")
     heading: Optional[str] = Field(None, description="Direction from reference point to orbit center as text. Use the exact words from user input: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Extract from phrases like 'orbit 2 miles north' (heading='north'), 'circle 500 feet southeast' (heading='southeast'). Use with distance.")
     distance_units: Optional[str] = Field(None, description="Units for distance to orbit center. Extract from user input: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km'. Example: 'orbit 2 miles north' uses 'miles'.")
-    distance_reference_frame: Optional[str] = Field(None, description="Reference point for measuring distance to orbit center. Use 'origin' (takeoff) unless user specifies: 'from current position'/'from here' (use 'current'), 'from last waypoint' (use 'last_waypoint').")
+    relative_reference_frame: Optional[str] = Field(None, description="Reference point for measuring distance to orbit center. Use 'origin' (takeoff) unless user specifies: 'from current position'/'from here' (use 'current'), 'from last waypoint' (use 'last_waypoint').")
     
     # Orbit radius - critical parameter often specified by user
     radius: Optional[float] = Field(None, description="Radius of the circular orbit pattern. Extract from phrases like 'with 400 foot radius' (radius=400), 'circle with 50m radius' (radius=50), '200 meter orbit' (radius=200). This determines the size of the circle the drone flies.")
@@ -65,14 +65,6 @@ class TakeoffInput(BaseModel):
 class RTLInput(BaseModel):
     """Return to launch - automatically fly back to takeoff point and land"""
 
-class ModifyLastItemInput(BaseModel):
-    """Modify the most recently added mission item for quick corrections"""
-    
-    altitude: Optional[float] = Field(None, description="New altitude for the last mission item. Use when user corrects altitude like 'actually make that 200 meters' (altitude=200), 'change the altitude to 150 feet' (altitude=150), 'make it 500 feet instead' (altitude=500).")
-    altitude_units: Optional[str] = Field(None, description="New altitude units for the correction. Extract from user input: 'meters'/'m' or 'feet'/'ft'. Example: 'change that to 200 feet' uses 'feet'.")
-    radius: Optional[float] = Field(None, description="New radius for orbit/loiter items only. Use when user corrects orbit size like 'change the radius to 300 feet' (radius=300), 'make that orbit 400 meters' (radius=400). Only works on loiter/orbit commands.")
-    radius_units: Optional[str] = Field(None, description="New radius units for orbit corrections. Extract from user input: 'meters'/'m' or 'feet'/'ft'. Example: 'change radius to 300 feet' uses 'feet'.")
-    
 class UpdateMissionItemInput(BaseModel):
     """Update specific mission item by its sequence number in the mission"""
     
@@ -98,12 +90,12 @@ MODEL_PARAMETER_SCHEMAS = {
     },
     'waypoint': {
         'GPS Coordinates': ['latitude', 'longitude', 'mgrs'],
-        'Relative Positioning': ['distance', 'heading', 'distance_units', 'distance_reference_frame'],
+        'Relative Positioning': ['distance', 'heading', 'distance_units', 'relative_reference_frame'],
         'Altitude Parameters': ['altitude', 'altitude_units']
     },
     'loiter': {
         'GPS Coordinates': ['latitude', 'longitude', 'mgrs'],
-        'Relative Positioning': ['distance', 'heading', 'distance_units', 'distance_reference_frame'],
+        'Relative Positioning': ['distance', 'heading', 'distance_units', 'relative_reference_frame'],
         'Orbit Parameters': ['radius', 'radius_units'],
         'Altitude Parameters': ['altitude', 'altitude_units']
     },
@@ -122,68 +114,63 @@ class PX4ToolsMixin:
     def mission_manager(self):
         return _shared_mission_manager
     
-    def _get_command_type_map(self):
-        """Get command type mapping with MAV_CMD imports"""
-        from core.constants import MAV_CMD
-        return {
-            MAV_CMD.NAV_TAKEOFF: 'takeoff',
-            MAV_CMD.NAV_WAYPOINT: 'waypoint',
-            MAV_CMD.NAV_LOITER_UNLIM: 'loiter',
-            MAV_CMD.NAV_LOITER_TIME: 'loiter',
-            MAV_CMD.NAV_RETURN_TO_LAUNCH: 'rtl'
+    def _get_command_name(self, command_type: str) -> str:
+        """Get human-readable command name from type"""
+        command_map = {
+            'takeoff': "Takeoff",
+            'waypoint': "Waypoint",
+            'loiter': "Loiter",
+            'rtl': "Return to Launch"
         }
+        return command_map.get(command_type, f"Unknown {command_type}")
     
-    def _validate_mission_constraints(self, adding_command: int = None) -> tuple[bool, str]:
-        """Validate mission meets takeoff/RTL constraints"""
+    def _validate_mission_after_action(self) -> tuple[bool, str]:
+        """Validate mission after action is performed - allows rollback if invalid"""
         mission = self.mission_manager.get_mission()
         if not mission:
             return True, ""
         
-        from core.constants import MAV_CMD, VALIDATION_RULES
+        # Use the comprehensive mission validation from MissionManager with mode-specific rules
+        is_valid, error_list = self.mission_manager.validate_mission()
         
-        # Get current counts
-        takeoff_count = sum(1 for item in mission.items if item.command == MAV_CMD.NAV_TAKEOFF)
-        rtl_count = sum(1 for item in mission.items if item.command == MAV_CMD.NAV_RETURN_TO_LAUNCH)
-        
-        # Account for the command being added
-        if adding_command == MAV_CMD.NAV_TAKEOFF:
-            takeoff_count += 1
-        elif adding_command == MAV_CMD.NAV_RETURN_TO_LAUNCH:
-            rtl_count += 1
-        
-        # EXPLICIT VALIDATION: Single takeoff only
-        if VALIDATION_RULES.SINGLE_TAKEOFF_ONLY and takeoff_count > 1:
-            return False, "Mission can only have a single takeoff command"
-        
-        # EXPLICIT VALIDATION: Single RTL only  
-        if VALIDATION_RULES.SINGLE_RTL_ONLY and rtl_count > 1:
-            return False, "Mission can only have a single RTL command"
-        
-        # EXPLICIT VALIDATION: Takeoff must be first item
-        if (VALIDATION_RULES.TAKEOFF_MUST_BE_FIRST and 
-            takeoff_count >= 1 and mission.items and 
-            adding_command != MAV_CMD.NAV_TAKEOFF and 
-            mission.items[0].command != MAV_CMD.NAV_TAKEOFF):
-            return False, "Takeoff can only be the first item in mission"
-        
-        # EXPLICIT VALIDATION: RTL must be last item
-        if (VALIDATION_RULES.RTL_MUST_BE_LAST and 
-            rtl_count >= 1 and mission.items and 
-            adding_command != MAV_CMD.NAV_RETURN_TO_LAUNCH):
-            # Check if there's already an RTL that's not at the end
-            for i, item in enumerate(mission.items):
-                if item.command == MAV_CMD.NAV_RETURN_TO_LAUNCH and i != len(mission.items) - 1:
-                    return False, "RTL can only be the last item in mission"
+        if not is_valid:
+            # Return first error as primary message
+            primary_error = error_list[0] if error_list else "Mission validation failed"
+            return False, primary_error
         
         return True, ""
     
+    def _save_mission_state(self):
+        """Save current mission state for rollback"""
+        mission = self.mission_manager.get_mission()
+        if not mission:
+            return None
+        
+        # Create a deep copy of mission items
+        import copy
+        return copy.deepcopy(mission.items)
+    
+    def _restore_mission_state(self, saved_items):
+        """Restore mission to previous state"""
+        mission = self.mission_manager.get_mission()
+        if mission and saved_items is not None:
+            mission.items = saved_items
+            # Resequence items
+            for i, item in enumerate(mission.items):
+                item.seq = i
+    
     def _get_detailed_parameter_display(self, item) -> str:
         """Show ALL model-available parameters for this mission item"""
-        from core.constants import COMMAND_EMOJIS, DISPLAY_CONFIG
+        COMMAND_EMOJIS = {
+            'takeoff': "🚀",
+            'waypoint': "📍", 
+            'loiter': "🔄",
+            'rtl': "🏠"
+        }
+        UNSPECIFIED_MARKER = "unspecified"
         
-        command_type_map = self._get_command_type_map()
-        command_type = command_type_map.get(item.command, 'unknown')
-        command_name = self._get_command_name(item.command)
+        command_type = getattr(item, 'command_type', 'unknown')
+        command_name = self._get_command_name(command_type)
         schema = MODEL_PARAMETER_SCHEMAS.get(command_type, {})
         
         emoji = COMMAND_EMOJIS.get(command_type, '❓')
@@ -198,22 +185,9 @@ class PX4ToolsMixin:
             for param in params:
                 value = getattr(item, param, None)
                 if value is None:
-                    display += f"    {param}: {DISPLAY_CONFIG.UNSPECIFIED_MARKER}\n"
+                    display += f"    {param}: {UNSPECIFIED_MARKER}\n"
                 else:
                     display += f"    {param}: {value}\n"
-            display += "\n"
-        
-        return display
-    
-    def _get_exhaustive_mission_display(self) -> str:
-        """Get detailed mission display showing ALL parameters"""
-        mission = self.mission_manager.get_mission()
-        if not mission or not mission.items:
-            return "DETAILED MISSION DISPLAY:\n\nEmpty mission - no items yet."
-        
-        display = "DETAILED MISSION DISPLAY:\n\n"
-        for item in mission.items:
-            display += self._get_detailed_parameter_display(item)
             display += "\n"
         
         return display
@@ -253,7 +227,7 @@ class PX4ToolsMixin:
         
         summary = f"\n\nCURRENT MISSION STATE: {len(mission.items)} items:"
         for i, item in enumerate(mission.items):
-            cmd_name = self._get_command_name(item.command)
+            cmd_name = self._get_command_name(getattr(item, 'command_type', 'unknown'))
             item_desc = f"\n  {i+1}. {cmd_name}"
             
             # ONLY show coordinates if actually specified by model
@@ -265,7 +239,7 @@ class PX4ToolsMixin:
             distance_specified = hasattr(item, 'distance') and item.distance is not None
             heading_specified = hasattr(item, 'heading') and item.heading is not None
             distance_units_specified = hasattr(item, 'distance_units') and item.distance_units
-            reference_specified = hasattr(item, 'distance_reference_frame') and item.distance_reference_frame
+            reference_specified = hasattr(item, 'relative_reference_frame') and item.relative_reference_frame
             
             if distance_specified or heading_specified or distance_units_specified or reference_specified:
                 position_parts = []
@@ -286,7 +260,7 @@ class PX4ToolsMixin:
                     position_parts.append("(direction missing)")
                 
                 if reference_specified:
-                    ref_str = f" from {item.distance_reference_frame}"
+                    ref_str = f" from {item.relative_reference_frame}"
                 elif distance_specified or heading_specified:
                     ref_str = " from (reference missing)"
                 else:
@@ -327,28 +301,14 @@ class PX4ToolsMixin:
         
         return summary
     
-    def _get_command_name(self, command_id: int) -> str:
-        """Get human-readable command name"""
-        from core.constants import MAV_CMD
-        
-        command_map = {
-            MAV_CMD.NAV_WAYPOINT: "Waypoint",
-            MAV_CMD.NAV_TAKEOFF: "Takeoff", 
-            MAV_CMD.NAV_RETURN_TO_LAUNCH: "Return to Launch",
-            MAV_CMD.NAV_LOITER_TIME: "Loiter (Timed)",
-            MAV_CMD.NAV_LOITER_UNLIM: "Loiter (Unlimited)"
-        }
-        
-        return command_map.get(command_id, f"Command {command_id}")
-    
-    def _build_coordinate_description(self, latitude, longitude, mgrs, distance, heading, distance_units, distance_reference_frame):
+    def _build_coordinate_description(self, latitude, longitude, mgrs, distance, heading, distance_units, relative_reference_frame):
         """Build coordinate description following wx-agent pattern"""
         if latitude is not None and longitude is not None:
             return f"lat/long ({latitude:.6f}, {longitude:.6f})"
         elif mgrs is not None:
             return f"MGRS {mgrs}"
         elif distance is not None and heading is not None:
-            ref_desc = {"origin": "takeoff", "current": "current position", "last_waypoint": "last waypoint"}.get(distance_reference_frame, "takeoff")
+            ref_desc = {"origin": "takeoff", "current": "current position", "last_waypoint": "last waypoint"}.get(relative_reference_frame, "takeoff")
             return f"{distance} {distance_units} {heading} from {ref_desc}"
         else:
             return "coordinates not specified"
@@ -360,17 +320,15 @@ class AddWaypointTool(PX4ToolsMixin, BaseTool):
     
     def _run(self, latitude: Optional[float] = None, longitude: Optional[float] = None, mgrs: Optional[str] = None, 
              distance: Optional[float] = None, heading: Optional[str] = None, distance_units: Optional[str] = None, 
-             distance_reference_frame: Optional[str] = None, altitude: Optional[float] = None, altitude_units: Optional[str] = None) -> str:
+             relative_reference_frame: Optional[str] = None, altitude: Optional[float] = None, altitude_units: Optional[str] = None) -> str:
         try:
-            from core.constants import MAV_CMD
-            # Validate mission constraints before adding waypoint
-            is_valid, error_msg = self._validate_mission_constraints(MAV_CMD.NAV_WAYPOINT)
-            if not is_valid:
-                return f"Error: {error_msg}"
+            # Save current mission state for potential rollback
+            saved_state = self._save_mission_state()
+            
             # Work with current mission
             
             # Build coordinate description following wx-agent pattern
-            coord_desc = self._build_coordinate_description(latitude, longitude, mgrs, distance, heading, distance_units, distance_reference_frame)
+            coord_desc = self._build_coordinate_description(latitude, longitude, mgrs, distance, heading, distance_units, relative_reference_frame)
             
             # For mission manager, use lat/lon if provided, otherwise use defaults
             actual_lat = latitude if latitude is not None else 40.7128
@@ -394,8 +352,15 @@ class AddWaypointTool(PX4ToolsMixin, BaseTool):
                 item.heading = heading
                 item.distance = distance
                 item.distance_units = distance_units  # Store EXACTLY what model provided
-                item.distance_reference_frame = distance_reference_frame  # Store EXACTLY what model provided
+                item.relative_reference_frame = relative_reference_frame  # Store EXACTLY what model provided
             actual_seq = item.seq
+            
+            # Validate mission after adding waypoint
+            is_valid, error_msg = self._validate_mission_after_action()
+            if not is_valid:
+                # Rollback the action
+                self._restore_mission_state(saved_state)
+                return f"Error: {error_msg}"
             
             # Build response message with preserved units
             altitude_msg = f"{altitude} {altitude_units}" if altitude is not None else "not specified"
@@ -412,19 +377,16 @@ class AddLoiterTool(PX4ToolsMixin, BaseTool):
 
     def _run(self, latitude: Optional[float] = None, longitude: Optional[float] = None, mgrs: Optional[str] = None, 
              distance: Optional[float] = None, heading: Optional[str] = None, distance_units: Optional[str] = None, 
-             distance_reference_frame: Optional[str] = None, altitude: Optional[float] = None, altitude_units: Optional[str] = None, 
+             relative_reference_frame: Optional[str] = None, altitude: Optional[float] = None, altitude_units: Optional[str] = None, 
              radius: Optional[float] = None, radius_units: Optional[str] = None) -> str:
         try:
-            from core.constants import MAV_CMD
-            # Validate mission constraints before adding loiter
-            is_valid, error_msg = self._validate_mission_constraints(MAV_CMD.NAV_LOITER_UNLIM)
-            if not is_valid:
-                return f"Error: {error_msg}"
+            # Save current mission state for potential rollback
+            saved_state = self._save_mission_state()
 
             # Work with current mission
             
             # Build coordinate description following wx-agent pattern
-            coord_desc = self._build_coordinate_description(latitude, longitude, mgrs, distance, heading, distance_units, distance_reference_frame)
+            coord_desc = self._build_coordinate_description(latitude, longitude, mgrs, distance, heading, distance_units, relative_reference_frame)
             
             # For mission manager, use lat/lon if provided, otherwise use 0 (no guessing)
             actual_lat = latitude if latitude is not None else 0.0
@@ -450,7 +412,14 @@ class AddLoiterTool(PX4ToolsMixin, BaseTool):
                 item.heading = heading
                 item.distance = distance
                 item.distance_units = distance_units  # Store EXACTLY what model provided
-                item.distance_reference_frame = distance_reference_frame  # Store EXACTLY what model provided
+                item.relative_reference_frame = relative_reference_frame  # Store EXACTLY what model provided
+            
+            # Validate mission after adding loiter
+            is_valid, error_msg = self._validate_mission_after_action()
+            if not is_valid:
+                # Rollback the action
+                self._restore_mission_state(saved_state)
+                return f"Error: {error_msg}"
             
             # Build response with preserved units
             altitude_msg = f"{altitude} {altitude_units}" if altitude is not None else "not specified"
@@ -470,11 +439,8 @@ class AddTakeoffTool(PX4ToolsMixin, BaseTool):
     def _run(self, latitude: Optional[float] = None, longitude: Optional[float] = None, 
              altitude: Optional[float] = None, altitude_units: Optional[str] = None) -> str:
         try:
-            from core.constants import MAV_CMD
-            # Validate mission constraints before adding takeoff
-            is_valid, error_msg = self._validate_mission_constraints(MAV_CMD.NAV_TAKEOFF)
-            if not is_valid:
-                return f"Error: {error_msg}"
+            # Save current mission state for potential rollback
+            saved_state = self._save_mission_state()
             
             # Build coordinate description - for takeoff, usually just use altitude
             coord_desc = ""
@@ -496,6 +462,13 @@ class AddTakeoffTool(PX4ToolsMixin, BaseTool):
                 original_longitude=longitude
             )
             
+            # Validate mission after adding takeoff
+            is_valid, error_msg = self._validate_mission_after_action()
+            if not is_valid:
+                # Rollback the action
+                self._restore_mission_state(saved_state)
+                return f"Error: {error_msg}"
+            
             # Build response message with preserved units
             altitude_msg = f" to {altitude} {altitude_units}" if altitude is not None else " to default altitude"
             response = f"Takeoff command added to mission{coord_desc}{altitude_msg} (Item {item.seq + 1})"
@@ -512,63 +485,22 @@ class AddRTLTool(PX4ToolsMixin, BaseTool):
     
     def _run(self) -> str:
         try:
-            from core.constants import MAV_CMD
-            # Validate mission constraints before adding RTL
-            is_valid, error_msg = self._validate_mission_constraints(MAV_CMD.NAV_RETURN_TO_LAUNCH)
-            if not is_valid:
-                return f"Error: {error_msg}"
+            # Save current mission state for potential rollback
+            saved_state = self._save_mission_state()
+            
             # Work with current mission
             item = self.mission_manager.add_return_to_launch()
+            
+            # Validate mission after adding RTL
+            is_valid, error_msg = self._validate_mission_after_action()
+            if not is_valid:
+                # Rollback the action
+                self._restore_mission_state(saved_state)
+                return f"Error: {error_msg}"
+            
             response = f"Return to Launch command added to mission (Item {item.seq + 1})"
             response += self._get_mission_state_summary()
             return response
-        except Exception as e:
-            return f"Error: {str(e)}"
-
-class ModifyLastItemTool(PX4ToolsMixin, BaseTool):
-    name: str = "modify_last_item"
-    description: str = "Modify the most recently added mission item for quick corrections. Use when user wants to change parameters of the last command they added, without specifying item numbers. Use for corrections like 'actually make that 500 feet', 'change the altitude to 200 meters', 'update the radius to 300 feet'."
-    args_schema: type = ModifyLastItemInput
-    
-    def _run(self, altitude: Optional[float] = None, altitude_units: Optional[str] = None, 
-             radius: Optional[float] = None, radius_units: Optional[str] = None) -> str:
-        try:
-            mission = self.mission_manager.get_mission()
-            if not mission or not mission.items:
-                return "Error: No mission items to modify"
-            
-            last_item = mission.items[-1]
-            original_seq = last_item.seq
-            changes_made = []
-            
-            # Update altitude if provided
-            if altitude is not None:
-                last_item.z = altitude
-                last_item.altitude = altitude
-                if altitude_units:
-                    last_item.altitude_units = altitude_units
-                changes_made.append(f"altitude to {altitude} {altitude_units or 'meters'}")
-            
-            # Update radius if provided (only for loiter items)
-            if radius is not None:
-                if hasattr(last_item, 'radius') or last_item.command == 17:  # MAV_CMD.NAV_LOITER_UNLIM
-                    last_item.param3 = radius  # Radius is stored in param3 for loiter
-                    if hasattr(last_item, 'radius'):
-                        last_item.radius = radius
-                    if radius_units and hasattr(last_item, 'radius_units'):
-                        last_item.radius_units = radius_units
-                    changes_made.append(f"radius to {radius} {radius_units or 'meters'}")
-                else:
-                    return "Error: Cannot modify radius on non-loiter items"
-            
-            if not changes_made:
-                return "No changes specified - provide altitude, radius, or other parameters to modify"
-            
-            changes_str = ", ".join(changes_made)
-            response = f"Modified last mission item (Item {original_seq}): updated {changes_str}"
-            response += self._get_mission_state_summary()
-            return response
-            
         except Exception as e:
             return f"Error: {str(e)}"
 
@@ -583,6 +515,9 @@ class UpdateMissionItemTool(PX4ToolsMixin, BaseTool):
             mission = self.mission_manager.get_mission()
             if not mission or not mission.items:
                 return "Error: No mission items to update"
+            
+            # Save current mission state for potential rollback
+            saved_state = self._save_mission_state()
             
             # Convert 1-based indexing to 0-based
             zero_based_seq = seq - 1
@@ -616,6 +551,13 @@ class UpdateMissionItemTool(PX4ToolsMixin, BaseTool):
             if not changes_made:
                 return "No changes specified - provide altitude, radius, or other parameters to modify"
             
+            # Validate mission after modifications
+            is_valid, error_msg = self._validate_mission_after_action()
+            if not is_valid:
+                # Rollback the action
+                self._restore_mission_state(saved_state)
+                return f"Error: {error_msg}"
+            
             changes_str = ", ".join(changes_made)
             response = f"Updated mission item {seq}: {changes_str}"
             response += self._get_mission_state_summary()
@@ -635,6 +577,9 @@ class DeleteMissionItemTool(PX4ToolsMixin, BaseTool):
             if not mission or not mission.items:
                 return "Error: No mission items to delete"
             
+            # Save current mission state for potential rollback
+            saved_state = self._save_mission_state()
+            
             # Convert 1-based indexing to 0-based
             zero_based_seq = seq - 1
             if seq < 1 or zero_based_seq >= len(mission.items):
@@ -642,7 +587,7 @@ class DeleteMissionItemTool(PX4ToolsMixin, BaseTool):
             
             # Get item info before deletion for confirmation message
             item_to_delete = mission.items[zero_based_seq]
-            command_name = self._get_command_name(item_to_delete.command)
+            command_name = _get_command_name(item_to_delete.command)
             
             # Remove the item from the mission
             del mission.items[zero_based_seq]
@@ -650,6 +595,13 @@ class DeleteMissionItemTool(PX4ToolsMixin, BaseTool):
             # Resequence remaining items
             for i, item in enumerate(mission.items):
                 item.seq = i
+            
+            # Validate mission after deletion
+            is_valid, error_msg = self._validate_mission_after_action()
+            if not is_valid:
+                # Rollback the action
+                self._restore_mission_state(saved_state)
+                return f"Error: {error_msg}"
             
             response = f"Deleted mission item {seq} ({command_name}). Mission now has {len(mission.items)} items."
             response += self._get_mission_state_summary()
@@ -667,7 +619,6 @@ def get_px4_tools() -> list:
         AddTakeoffTool(),
         AddRTLTool(),
         AddLoiterTool(),
-        ModifyLastItemTool(),
         UpdateMissionItemTool(),
         DeleteMissionItemTool(),
     ]
