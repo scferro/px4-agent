@@ -78,7 +78,7 @@ class OutputFormatter:
                 
                 # Location Parameters - show if any location info specified
                 if (item.get('latitude') is not None or item.get('longitude') is not None or 
-                    item.get('mgrs') is not None or item.get('distance') is not None or item.get('heading') is not None):
+                    item.get('mgrs') is not None or item.get('distance') is not None or item.get('relative_reference_frame') is not None):
                     
                     # Lat/Long
                     if (item.get('latitude') is not None or item.get('longitude') is not None):

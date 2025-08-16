@@ -111,15 +111,43 @@ class MissionManager:
     
     def set_mode(self, mode: str):
         """Set the validation mode"""
-        self.mode = mode # "mission" or "command"
+        self.mode = mode
+    
+    def insert_item_at(self, item: MissionItem, position: Optional[int] = None) -> MissionItem:
+        """Insert mission item at specific position or append to end"""
+        mission = self._get_current_mission_or_raise()
+        
+        if position is None or position <= 0:
+            # Append to end (default behavior)
+            item.seq = len(mission.items)
+            mission.items.append(item)
+        else:
+            # Insert at specific position (1-based)
+            insert_index = position - 1  # Convert to 0-based index
+            
+            if insert_index > len(mission.items):
+                # If position is beyond current length, append to end
+                item.seq = len(mission.items)
+                mission.items.append(item)
+            else:
+                # Insert at specified position
+                item.seq = insert_index
+                mission.items.insert(insert_index, item)
+                
+                # Resequence all items after insertion
+                for i, mission_item in enumerate(mission.items):
+                    mission_item.seq = i
+        
+        mission.modified_at = datetime.now()
+        return item
     
     def add_takeoff(self, lat: float, lon: float, alt: float, 
-                   altitude_units: Optional[str] = None, **original_params) -> MissionItem:
+                   altitude_units: Optional[str] = None, insert_at: Optional[int] = None, **original_params) -> MissionItem:
         """Add takeoff command"""
         mission = self._get_current_mission_or_raise()
         
         item = MissionItem(
-            seq=0,  # Will be set by add_item
+            seq=0,  # Will be set by insert_item_at
             command_type='takeoff',  # Track what type of command this is
             # Store ONLY what model can provide
             altitude=original_params.get('original_altitude'),
@@ -127,15 +155,15 @@ class MissionManager:
             latitude=original_params.get('original_latitude'),
             longitude=original_params.get('original_longitude')
         )
-        return mission.add_item(item)
+        return self.insert_item_at(item, insert_at)
     
     def add_waypoint(self, lat: float, lon: float, alt: float,
-                    altitude_units: Optional[str] = None, **original_params) -> MissionItem:
+                    altitude_units: Optional[str] = None, insert_at: Optional[int] = None, **original_params) -> MissionItem:
         """Add waypoint command"""
         mission = self._get_current_mission_or_raise()
         
         item = MissionItem(
-            seq=0,  # Will be set by add_item
+            seq=0,  # Will be set by insert_item_at
             command_type='waypoint',  # Track what type of command this is
             # Store ONLY what model can provide
             altitude=original_params.get('original_altitude'),
@@ -143,27 +171,27 @@ class MissionManager:
             latitude=original_params.get('original_latitude'),
             longitude=original_params.get('original_longitude')
         )
-        return mission.add_item(item)
+        return self.insert_item_at(item, insert_at)
     
     
-    def add_return_to_launch(self) -> MissionItem:
+    def add_return_to_launch(self, insert_at: Optional[int] = None) -> MissionItem:
         """Add return to launch command"""
         mission = self._get_current_mission_or_raise()
         
         item = MissionItem(
-            seq=0,  # Will be set by add_item
+            seq=0,  # Will be set by insert_item_at
             command_type='rtl'  # Track what type of command this is
         )
-        return mission.add_item(item)
+        return self.insert_item_at(item, insert_at)
     
     def add_loiter(self, lat: float, lon: float, alt: float,
-                  radius: float, radius_units: Optional[str] = None, **original_params) -> MissionItem:
+                  radius: float, radius_units: Optional[str] = None, insert_at: Optional[int] = None, **original_params) -> MissionItem:
         """Add loiter command"""
         mission = self._get_current_mission_or_raise()
         
         
         item = MissionItem(
-            seq=0,  # Will be set by add_item
+            seq=0,  # Will be set by insert_item_at
             command_type='loiter',  # Track what type of command this is
             # Store ONLY what model can provide
             radius=original_params.get('original_radius'),
@@ -173,7 +201,7 @@ class MissionManager:
             latitude=original_params.get('original_latitude'),
             longitude=original_params.get('original_longitude')
         )
-        return mission.add_item(item)
+        return self.insert_item_at(item, insert_at)
     
     def validate_mission(self) -> Tuple[bool, List[str]]:
         """Validate mission for safety and completeness"""
@@ -192,6 +220,7 @@ class MissionManager:
         if self.mode == "mission":
             # Strict validation for mission mode (building complete missions)
             has_takeoff = any(getattr(item, 'command_type', None) == 'takeoff' for item in mission.items)
+            has_rtl = any(getattr(item, 'command_type', None) == 'rtl' for item in mission.items)
             if settings.agent.require_takeoff and not has_takeoff:
                 errors.append("Mission should start with a takeoff command")
             
@@ -199,6 +228,11 @@ class MissionManager:
             if settings.agent.takeoff_must_be_first and has_takeoff:
                 if getattr(mission.items[0], 'command_type', None) != 'takeoff':
                     errors.append("Takeoff command is not the first item - takeoff must be the initial command")
+
+            # Check RTL positioning
+            if settings.agent.rtl_must_be_last and has_rtl:
+                if getattr(mission.items[-1], 'command_type', None) != 'rtl':
+                    errors.append("RTL command is not the last item - RTL must be at the last command")
             
             # Check for multiple takeoffs/RTLs
             takeoff_count = sum(1 for item in mission.items if getattr(item, 'command_type', None) == 'takeoff')

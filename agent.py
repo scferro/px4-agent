@@ -26,8 +26,8 @@ class PX4Agent:
         
         # Initialize components
         self.ollama_interface = create_ollama_interface()
-        self.tools = get_px4_tools()
-        self.mission_manager = self._get_shared_mission_manager()
+        self.tools = []  # Will be set when mode is selected
+        self.mission_manager = None  # Will be set when mode is selected
         
         # Debug: print tool info
         if self.verbose:
@@ -35,19 +35,24 @@ class PX4Agent:
         
         # Agent state
         self.current_mode = None
-        self.agent_executor = None
+        self.agent_graph = None
         self.chat_history = []
+    
+    def _setup_tools_for_mode(self, mode: str):
+        """Setup tools and mission manager for specific mode"""
+        # Create mission manager first
+        self.mission_manager = MissionManager(mode=mode)
         
-        # Initialize agent
+        # Create tools with mission manager
+        self.tools = get_px4_tools(self.mission_manager)
+        
+        # Debug: print tool info
+        if self.verbose:
+            print(f"🔧 Loaded {len(self.tools)} tools for {mode} mode")
+        
+        # Initialize agent with new tools
         self._initialize_agent()
     
-    def _get_shared_mission_manager(self) -> MissionManager:
-        """Get shared mission manager instance from tools"""
-        # Find a tool with mission manager and share it
-        for tool in self.tools:
-            if hasattr(tool, 'mission_manager'):
-                return tool.mission_manager
-        return MissionManager()
     
     def _initialize_agent(self):
         """Initialize the LangGraph agent"""
@@ -72,7 +77,11 @@ class PX4Agent:
     
     def mission_mode(self, user_input: str) -> Dict[str, Any]:
         """Execute mission mode - interactive mission building"""
-        self.current_mode = "mission"
+        
+        # Setup tools for mission mode only if not already in mission mode
+        if self.current_mode != "mission":
+            self.current_mode = "mission"
+            self._setup_tools_for_mode("mission")
         
         # Set mission manager to mission mode for strict validation
         self.mission_manager.set_mode("mission")
@@ -144,8 +153,6 @@ class PX4Agent:
                 # Debug info removed - clean output
             else:
                 output = "No AI response found"
-            
-            
 
             # Save intermediate steps to chat history
             if self.verbose:
@@ -198,6 +205,9 @@ class PX4Agent:
     def command_mode(self, user_input: str) -> Dict[str, Any]:
         """Execute command mode - single commands with reset"""
         self.current_mode = "command"
+        
+        # Setup tools for command mode (always reset for command mode)  
+        self._setup_tools_for_mode("command")
         
         # Set mission manager to command mode for relaxed validation
         self.mission_manager.set_mode("command")
