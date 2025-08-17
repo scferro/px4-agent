@@ -125,11 +125,6 @@ class PX4Agent:
                     if hasattr(msg, 'name') and msg.name:
                         print(f"   Tool name: {msg.name}")
                     print()
-                
-                # Count executions (for internal tracking only)
-                tool_calls = sum(len(msg.tool_calls) if hasattr(msg, 'tool_calls') and msg.tool_calls else 0 
-                               for msg in result["messages"])
-                tool_executions = len([msg for msg in result["messages"] if msg.__class__.__name__ == 'ToolMessage'])
 
             # Find the last AI message (not ToolMessage)
             final_ai_message = None
@@ -140,7 +135,6 @@ class PX4Agent:
             
             if final_ai_message:
                 output = final_ai_message.content if hasattr(final_ai_message, 'content') else str(final_ai_message)
-                # Debug info removed - clean output
             else:
                 output = "No AI response found"
 
@@ -238,33 +232,17 @@ class PX4Agent:
                         print(f"   Tool name: {msg.name}")
                     print()
 
-            # Find the last AI message (not ToolMessage) and validate single response
+            # Find the last AI message (not ToolMessage)
             final_ai_message = None
-            ai_message_count = 0
-            
-            for msg in result["messages"]:
+            for msg in reversed(result["messages"]):
                 if msg.__class__.__name__ == 'AIMessage':
-                    ai_message_count += 1
                     final_ai_message = msg
+                    break
             
-            # Additional validation: Check for excessive interactions (tool calls + AI responses)
-            total_interactions = len([msg for msg in result["messages"] if msg.__class__.__name__ in ['AIMessage', 'ToolMessage']])
-            
-            # Validate that we got exactly one AI response (single command execution)
-            if ai_message_count == 0:
-                output = "No AI response found"
-            elif ai_message_count > 1:
-                # Multiple AI responses indicate a conversation, which shouldn't happen in command mode
-                if self.verbose:
-                    print(f"🔍 WARNING: Command mode produced {ai_message_count} AI responses (expected 1)")
+            if final_ai_message:
                 output = final_ai_message.content if hasattr(final_ai_message, 'content') else str(final_ai_message)
             else:
-                # Exactly 1 AI response - this is what we expect
-                output = final_ai_message.content if hasattr(final_ai_message, 'content') else str(final_ai_message)
-            
-            # Warn if there were too many interactions (may indicate conversational behavior)
-            if self.verbose and total_interactions > 10:
-                print(f"🔍 WARNING: Command mode had {total_interactions} interactions (high for single command)")
+                output = "No AI response found"
 
             # Get final mission state  
             mission = self.mission_manager.get_mission()
@@ -287,6 +265,26 @@ class PX4Agent:
             # Reset even on error
             self.chat_history = []
             self.mission_manager.clear_mission()
+
+            # In verbose mode or on error, try to print message chain if available
+            try:
+                if 'result' in locals() and result.get("messages"):
+                    print("\n🔍 ERROR: Agent Conversation Chain (up to failure point)")
+                    print("=" * 60)
+                    for i, msg in enumerate(result["messages"]):
+                        msg_type = type(msg).__name__
+                        print(f"{i}. {msg_type}:")
+                        if hasattr(msg, 'content') and msg.content:
+                            print(f"   Content: {msg.content}")
+                        if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                            print(f"   Tool calls: {msg.tool_calls}")
+                        if hasattr(msg, 'name') and msg.name:
+                            print(f"   Tool name: {msg.name}")
+                        print()
+                else:
+                    print("\n🔍 ERROR: No message chain available (error occurred before agent execution)")
+            except:
+                print("\n🔍 ERROR: Could not display message chain")
             
             return {
                 "success": False,

@@ -9,6 +9,8 @@ Missions should start with a single takeoff action. RTL actions should be used a
 
 Use the mission_state feedback in XML format to verify that your commands create the mission requested by the user. Continue working until you complete the user's request.
 
+TO EDIT MISSIONS: Use update_mission_item (modify parameters), delete_mission_item (remove items), or move_mission_item (reorder items) tools. Choose based on goal: update for changing values/positions, delete for removing unwanted items, move for reordering sequence.
+
 DO NOT MIX LOCATION SYSTEMS WITHIN MISSION ITEMS. Use Lat/Long OR mgrs OR distance/heading/reference frame. Omit fields you are not using. 
 
 DO NOT PROVIDE A SUMMARY OF THE CURRENT MISSION STATE. The user can see it separately.
@@ -21,6 +23,8 @@ COMMAND_SYSTEM_PROMPT = """You are a PX4 drone command interpretation assistant 
 You should create a single mission item for the drone to execute. Your final plan must include only one mission item. If you create a plan with more than one mission item, only the first item will be shown to the user and executed.
 
 Use the mission_state feedback in XML format to verify that your commands create the command requested by the user.
+
+DO NOT MIX LOCATION SYSTEMS WITHIN MISSION ITEMS. Use Lat/Long OR mgrs OR distance/heading/reference frame. Omit fields you are not using. 
 
 DO NOT PROVIDE A SUMMARY OF THE CURRENT MISSION STATE. The user can see it separately.
 

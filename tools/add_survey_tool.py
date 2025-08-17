@@ -54,7 +54,7 @@ class SurveyInput(BaseModel):
 
 class AddSurveyTool(PX4ToolBase):
     name: str = "add_survey"
-    description: str = "Create systematic survey pattern for area coverage. Two modes: CENTER+RADIUS (specify center point and radius) or CORNER POINTS (define polygon boundary). Use for survey commands like 'survey 1km radius around this point' or 'survey the area bounded by these corners'. Specify Lat/Long OR MGRS OR distance/heading/reference. Do not mix location systems."
+    description: str = "Create systematic survey pattern for area coverage. Two modes: CENTER+RADIUS (specify center point and radius) or CORNER POINTS (define polygon boundary). Use for survey commands like 'survey 1km radius around this point' or 'search the area bounded by these corners'. Specify Lat/Long OR MGRS OR distance/heading/reference. Do not mix location systems."
     args_schema: type = SurveyInput
     
     def __init__(self, mission_manager):

@@ -358,8 +358,7 @@ class MissionManager:
             altitude_value = getattr(item, 'altitude', None)
             if altitude_value is not None and altitude_value <= 0:
                 errors.append(f"Item {index}: Altitude must be positive")
-        
-        
+                        
         return errors
     
     def get_mission_state_summary(self) -> str:
@@ -375,21 +374,37 @@ class MissionManager:
                 summary += f"\n  <type>{command_type}</type>"
                 
                 # Add key parameters
-                if hasattr(item, 'altitude') and item.altitude is not None:
-                    alt_units = getattr(item, 'altitude_units', 'units')
-                    summary += f"\n  <altitude>{item.altitude} {alt_units}</altitude>"
+                if (hasattr(item, 'altitude') and item.altitude is not None) or (hasattr(item, 'altitude_units') and item.altitude_units is not None):
+                    altitude_val = item.altitude if item.altitude is not None else "(altitude)"
+                    alt_units = item.altitude_units if item.altitude_units is not None else "(altitude_units)"
+                    summary += f"\n  <altitude>{altitude_val} {alt_units}</altitude>"
                 
-                if hasattr(item, 'radius') and item.radius is not None:
-                    radius_units = getattr(item, 'radius_units', 'units')
-                    summary += f"\n  <radius>{item.radius} {radius_units}</radius>"
+                # Show radius if either radius or radius_units is specified
+                if (hasattr(item, 'radius') and item.radius is not None) or (hasattr(item, 'radius_units') and item.radius_units is not None):
+                    radius_val = item.radius if item.radius is not None else "(radius)"
+                    radius_units = item.radius_units if item.radius_units is not None else "(radius_units)"
+                    summary += f"\n  <radius>{radius_val} {radius_units}</radius>"
                 
                 # Add position info if available
-                if hasattr(item, 'latitude') and item.latitude is not None:
-                    summary += f"\n  <position>lat/lon ({item.latitude:.6f}, {getattr(item, 'longitude', 0):.6f})</position>"
-                elif hasattr(item, 'distance') and item.distance is not None and hasattr(item, 'heading') and item.heading is not None:
-                    dist_units = getattr(item, 'distance_units', 'units')
-                    ref_frame = getattr(item, 'relative_reference_frame', 'origin')
-                    summary += f"\n  <position>{item.distance} {dist_units} {item.heading} from {ref_frame}</position>"
+                if (hasattr(item, 'latitude') and item.latitude is not None) or (hasattr(item, 'longitude') and item.longitude is not None):
+                    lat_val = f"{item.latitude:.6f}" if item.latitude is not None else "(latitude)"
+                    lon_val = f"{item.longitude:.6f}" if item.longitude is not None else "(longitude)"
+                    summary += f"\n  <position>lat/lon ({lat_val}, {lon_val})</position>"
+                elif hasattr(item, 'mgrs') and item.mgrs is not None:
+                    summary += f"\n  <position>MGRS {item.mgrs}</position>"
+                elif (hasattr(item, 'distance') and item.distance is not None) or (hasattr(item, 'heading') and item.heading is not None) or (hasattr(item, 'distance_units') and item.distance_units is not None) or (hasattr(item, 'relative_reference_frame') and item.relative_reference_frame is not None):
+                    distance = item.distance if item.distance is not None else "(distance)"
+                    dist_units = item.distance_units if item.distance_units is not None else "(distance_units)"
+                    heading = item.heading if item.heading is not None else "(heading)"
+                    ref_frame = item.relative_reference_frame if item.relative_reference_frame is not None else "(relative_reference_frame)"
+                    summary += f"\n  <position>{distance} {dist_units} {heading} from {ref_frame}</position>"
+                
+                # Show AI search parameters if any are specified
+                if command_type == 'ai_search' and ((hasattr(item, 'status') and item.status is not None) or (hasattr(item, 'target') and item.target is not None) or (hasattr(item, 'behavior') and item.behavior is not None)):
+                    status = item.status if item.status is not None else "(status)"
+                    target = item.target if item.target is not None else "(target)"
+                    behavior = item.behavior if item.behavior is not None else "(behavior)"
+                    summary += f"\n  <ai_search>status={status}, target={target}, behavior={behavior}</ai_search>"
             
                 summary += f"\n</item_{i+1}>"
         
