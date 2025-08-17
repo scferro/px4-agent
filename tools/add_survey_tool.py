@@ -22,7 +22,7 @@ class SurveyInput(BaseModel):
     center_distance: Optional[float] = Field(None, description="Distance to survey center from reference point. Use with center_heading.")
     center_heading: Optional[str] = Field(None, description="Direction to survey center: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Use with center_distance.")
     center_distance_units: Optional[str] = Field(None, description="Units for center distance: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km'.")
-    center_relative_reference_frame: Optional[str] = Field(None, description="Reference point for center distance: 'origin' (takeoff), 'current', 'last_waypoint'. If no location is specified, set to 'lasr_waypoint' and leave other fields blank.")
+    center_relative_reference_frame: Optional[str] = Field(None, description="Reference point for center distance: 'origin' (takeoff), 'last_waypoint'. If no location is specified, set to 'lasr_waypoint' and leave other fields blank.")
     
     # Survey area size (for center+radius mode)
     survey_radius: Optional[float] = Field(None, description="Radius of circular survey area. Use with survey_radius_units.")

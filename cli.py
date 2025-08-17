@@ -12,7 +12,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from agent import PX4Agent
+from core.agent import PX4Agent
 from core import OutputFormatter
 from config import get_settings
 

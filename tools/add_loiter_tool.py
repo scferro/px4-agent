@@ -21,7 +21,7 @@ class LoiterInput(BaseModel):
     distance: Optional[float] = Field(None, description="Distance to orbit center from reference point. Use with heading.")
     heading: Optional[str] = Field(None, description="Direction to orbit center: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Use with distance.")
     distance_units: Optional[str] = Field(None, description="Units for distance: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km'.")
-    relative_reference_frame: Optional[str] = Field(None, description="Reference point for distance: 'origin' (takeoff), 'current', 'last_waypoint'. If no location is specified, set to 'lasr_waypoint' and leave other fields blank.")
+    relative_reference_frame: Optional[str] = Field(None, description="Reference point for distance: 'origin' (takeoff), 'last_waypoint'. If no location is specified, set to 'lasr_waypoint' and leave other fields blank.")
     
     # Orbit radius - critical parameter often specified by user
     radius: Optional[float] = Field(None, description="Radius of the circular orbit pattern. Determines size of the circle.")
