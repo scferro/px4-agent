@@ -18,7 +18,7 @@ class TakeoffInput(BaseModel):
     mgrs: Optional[str] = Field(None, description="MGRS coordinate string. Use when user provides MGRS grid coordinates for takeoff location.")
     
     # Target altitude - required parameter
-    altitude: Optional[float] = Field(None, description="Target takeoff altitude that drone will climb to. Extract from phrases like 'takeoff to 250 feet' (altitude=250), 'launch to 100 meters'. This sets the flight altitude for the mission.")
+    altitude: Optional[float] = Field(None, description="Target takeoff altitude that drone will climb to. Extract from phrases like 'takeoff to 250 feet', 'launch to 100 meters'. This sets the flight altitude for the mission. DO NOT include unless directly specified by the user.")
     altitude_units: Optional[str] = Field(None, description="Units for takeoff altitude. Extract from user input: 'meters'/'m' or 'feet'/'ft'.")
 
 

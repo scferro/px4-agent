@@ -12,10 +12,72 @@
     "max_mission_items": 100,
     "auto_validate": true,
     "verbose_default": false,
+    
     "single_takeoff_only": true,
     "single_rtl_only": true,
     "takeoff_must_be_first": true,
     "rtl_must_be_last": true,
-    "auto_fix_positioning": true
+    "auto_fix_positioning": true,
+    
+    "auto_add_missing_takeoff": true,
+    "auto_add_missing_rtl": true,
+    "auto_complete_parameters": true,
+    
+    "takeoff_default_altitude": 50.0,
+    "takeoff_altitude_units": "meters",
+    "takeoff_min_altitude": 1.0,
+    "takeoff_max_altitude": 1000.0,
+    "takeoff_default_latitude": 0.0,
+    "takeoff_default_longitude": 0.0,
+    
+    "waypoint_default_altitude": 100.0,
+    "waypoint_altitude_units": "meters",
+    "waypoint_min_altitude": 1.0,
+    "waypoint_max_altitude": 1000.0,
+    "waypoint_use_previous_altitude": true,
+    "waypoint_require_coordinates": true,
+    
+    "loiter_default_altitude": 100.0,
+    "loiter_altitude_units": "meters",
+    "loiter_min_altitude": 1.0,
+    "loiter_max_altitude": 1000.0,
+    "loiter_use_previous_altitude": true,
+    "loiter_default_radius": 50.0,
+    "loiter_radius_units": "meters",
+    "loiter_min_radius": 10.0,
+    "loiter_max_radius": 1000.0,
+    "loiter_default_latitude": 0.0,
+    "loiter_default_longitude": 0.0,
+    "loiter_use_last_waypoint_location": true,
+    
+    "rtl_default_altitude": 50.0,
+    "rtl_altitude_units": "meters",
+    "rtl_min_altitude": 1.0,
+    "rtl_max_altitude": 1000.0,
+    "rtl_use_takeoff_altitude": true,
+    
+    "survey_default_altitude": 100.0,
+    "survey_altitude_units": "meters",
+    "survey_min_altitude": 10.0,
+    "survey_max_altitude": 1000.0,
+    "survey_use_previous_altitude": true,
+    "survey_default_radius": 100.0,
+    "survey_radius_units": "meters",
+    "survey_min_radius": 50.0,
+    "survey_max_radius": 5000.0,
+    "survey_default_latitude": 0.0,
+    "survey_default_longitude": 0.0,
+    "survey_use_last_waypoint_location": true,
+    
+    "default_search_target": "",
+    "default_detection_behavior": "tag_and_continue",
+    "default_distance_units": "meters",
+    "min_distance": 1.0,
+    "max_distance": 50000.0,
+    
+    "global_min_altitude": 0.1,
+    "global_max_altitude": 2000.0,
+    "global_min_radius": 1.0,
+    "global_max_radius": 10000.0
   }
 }
