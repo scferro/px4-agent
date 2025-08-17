@@ -23,7 +23,7 @@ class AISearchInput(BaseModel):
 
 class AddAISearchTool(PX4ToolBase):
     name: str = "add_ai_search"
-    description: str = "Add AI-powered target detection and search capabilities to mission. Use when user wants AI to search for specific targets using image recognition. Enable search and set a target BEFORE the mission item where the user want to perform the search e.g. before loiter/survey/waypoint."
+    description: str = "Add AI-powered target detection and search capabilities to mission. Use when user wants AI to search for specific targets using image recognition. The AI seach mission item MUST BE DIRECTLY AFTER THE MISSION ITEM WHERE THE USER WANTS TO START THE SEACRH e.g. after loiter/survey/waypoint. This will cause the drone to search while it is loitering, while it is pasing through the waypoint, or while it is surveying."
     args_schema: type = AISearchInput
     
     def __init__(self, mission_manager):

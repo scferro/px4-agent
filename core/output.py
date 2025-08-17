@@ -99,6 +99,10 @@ class OutputFormatter:
                             rel_params.append(f"heading: {item['heading']}")
                         else:
                             rel_params.append(f"heading: {self.UNSPECIFIED_MARKER}")
+                        if item.get('distance_units') is not None:
+                            rel_params.append(f"distance_units: {item['distance_units']}")
+                        else:
+                            rel_params.append(f"distance_units: {self.UNSPECIFIED_MARKER}")
                         if item.get('relative_reference_frame') is not None:
                             rel_params.append(f"relative_reference_frame: {item.get('relative_reference_frame')}")
                         else:

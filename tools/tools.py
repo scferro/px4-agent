@@ -155,6 +155,7 @@ def get_px4_tools(mission_manager: MissionManager) -> list:
     from .add_ai_search_tool import AddAISearchTool
     from .update_mission_item_tool import UpdateMissionItemTool
     from .delete_mission_item_tool import DeleteMissionItemTool
+    from .move_mission_item_tool import MoveMissionItemTool
     
     return [
         AddWaypointTool(mission_manager),
@@ -165,4 +166,5 @@ def get_px4_tools(mission_manager: MissionManager) -> list:
         AddAISearchTool(mission_manager),
         UpdateMissionItemTool(mission_manager),
         DeleteMissionItemTool(mission_manager),
+        MoveMissionItemTool(mission_manager),
     ]

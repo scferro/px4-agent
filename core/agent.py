@@ -90,37 +90,25 @@ class PX4Agent:
         if not self.mission_manager.has_mission():
             self.chat_history = []
             self.mission_manager.create_mission()
-        
-        # Get current mission state for prompt (simplified)
-        mission = self.mission_manager.get_mission()
-        mission_state = "Empty mission - no items yet"
-        if mission and mission.items:
-            mission_state = f"Current mission has {len(mission.items)} items"
-        
-        # Get base system prompt and enhance with current mission state
-        base_system_prompt = get_system_prompt("mission_new")
-        mission_state_summary = self.mission_manager.get_mission_state_summary()
-        enhanced_system_prompt = f"{base_system_prompt}{mission_state_summary}"
+            
+            # Inject system prompt only once when mission is first created
+            base_system_prompt = get_system_prompt("mission_new")
+            mission_state_summary = self.mission_manager.get_mission_state_summary()
+            enhanced_system_prompt = f"{base_system_prompt}{mission_state_summary}"
+            self.chat_history.append(SystemMessage(content=enhanced_system_prompt))
         
         try:
-            # LangGraph uses messages instead of system_prompt/input format
-            messages = [
-                SystemMessage(content=enhanced_system_prompt),
-                HumanMessage(content=user_input)
-            ]
+            # Build messages starting with current user input
+            messages = [HumanMessage(content=user_input)]
             
-            
-            # Add chat history messages if any
-            for msg in self.chat_history:
-                if isinstance(msg, (HumanMessage, AIMessage)):
-                    messages.append(msg)
-            
+            # Add all chat history (including system message from first creation)
+            all_messages = self.chat_history + messages
             
             # Let LangGraph handle the conversation flow - it will continue until no more tool calls
             config = {"configurable": {"thread_id": "mission_thread"}}
             
             result = self.agent_graph.invoke({
-                "messages": messages
+                "messages": all_messages
             }, config=config)
             
             # In verbose mode, print the full conversation chain
@@ -156,9 +144,9 @@ class PX4Agent:
             else:
                 output = "No AI response found"
 
-            # Save intermediate steps to chat history
-            if self.verbose:
-                self.chat_history.extend(result.get("messages", []))
+            # Save new messages to chat history 
+            new_messages = result.get("messages", [])[len(self.chat_history):]
+            self.chat_history.extend(new_messages)
 
             # Get final mission state  
             mission = self.mission_manager.get_mission()
