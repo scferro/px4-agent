@@ -2,10 +2,8 @@
 PX4 Agent Models Module
 """
 
-from .ollama import OllamaInterface, create_ollama_interface, check_ollama_setup
+from .ollama import OllamaInterface
 
 __all__ = [
-    'OllamaInterface',
-    'create_ollama_interface', 
-    'check_ollama_setup'
+    'OllamaInterface'
 ]

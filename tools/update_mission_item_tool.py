@@ -12,31 +12,35 @@ from .tools import PX4ToolBase
 class UpdateMissionItemInput(BaseModel):
     """Update specific mission item by its sequence number in the mission"""
     
-    seq: int = Field(description="Mission item number to update (1=first item, 2=second item, etc.). Extract from user phrases like 'change the second waypoint' (seq=2), 'update item 3' (seq=3), 'modify the first takeoff' (seq=1).")
+    seq: int = Field(description="Mission item number to update (1=first item, 2=second item, etc.)")
     
     # GPS coordinates - use when user provides exact lat/lon numbers
-    latitude: Optional[float] = Field(None, description="New GPS latitude in decimal degrees. Use when user wants to change location like 'move item 2 to 37.7749, -122.4194' (latitude=37.7749). Updates exact GPS position.")
-    longitude: Optional[float] = Field(None, description="New GPS longitude in decimal degrees. Use when user wants to change location like 'move item 2 to 37.7749, -122.4194' (longitude=-122.4194). Updates exact GPS position.")
-    mgrs: Optional[str] = Field(None, description="New MGRS coordinate string like '11SMT1234567890'. Use when user provides MGRS coordinates for repositioning like 'change item 1 to MGRS 11SMT1234567890'.")
+    latitude: Optional[float] = Field(None, description="New GPS latitude in decimal degrees.")
+    longitude: Optional[float] = Field(None, description="New GPS longitude in decimal degrees.")
+    mgrs: Optional[str] = Field(None, description="New MGRS coordinate string like '11SMT1234567890'.")
     
     # Relative positioning - use for directional commands like "move 2 miles north"
-    distance: Optional[float] = Field(None, description="New distance value for relative positioning. Use when user wants to reposition relative to reference like 'move item 2 to 500 feet east' (distance=500), 'change waypoint 1 to 2 miles north' (distance=2).")
-    heading: Optional[str] = Field(None, description="New compass direction as text. Use exact words: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Extract from phrases like 'move item 2 to 500 feet east' (heading='east').")
-    distance_units: Optional[str] = Field(None, description="New units for distance parameter. Extract from user input: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km'. Example: 'move to 500 feet east' uses 'feet'.")
-    relative_reference_frame: Optional[str] = Field(None, description="New reference point for distance measurement. Use 'origin' (takeoff point) unless user specifies: 'from current position' (use 'current'), 'from last waypoint' (use 'last_waypoint').")
+    distance: Optional[float] = Field(None, description="New distance value for relative positioning.")
+    heading: Optional[str] = Field(None, description="New compass direction as text.")
+    distance_units: Optional[str] = Field(None, description="New units for distance parameter: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km'.")
+    relative_reference_frame: Optional[str] = Field(None, description="New reference point for distance measurement.")
     
     # Altitude specification
-    altitude: Optional[float] = Field(None, description="New altitude for the specified item. Use when user wants to change altitude like 'change item 2 altitude to 300 feet' (altitude=300), 'update the second waypoint to 100 meters' (altitude=100).")
-    altitude_units: Optional[str] = Field(None, description="New altitude units for the update. Extract from user input: 'meters'/'m' or 'feet'/'ft'. Example: 'change item 2 to 300 feet' uses 'feet'.")
+    altitude: Optional[float] = Field(None, description="New altitude for the specified item.")
+    altitude_units: Optional[str] = Field(None, description="New altitude units for the update: 'meters'/'m' or 'feet'/'ft'.")
     
     # Orbit radius (loiter only)
-    radius: Optional[float] = Field(None, description="New radius for orbit/loiter items only. Use when user wants to change orbit size like 'update item 3 radius to 200 meters' (radius=200), 'change the second orbit to 400 feet' (radius=400). Only works on loiter commands.")
-    radius_units: Optional[str] = Field(None, description="New radius units for orbit updates. Extract from user input: 'meters'/'m' or 'feet'/'ft'. Example: 'update radius to 200 meters' uses 'meters'.")
+    radius: Optional[float] = Field(None, description="New radius for orbit/loiter items only. Only works on loiter commands.")
+    radius_units: Optional[str] = Field(None, description="New radius units for orbit updates: 'meters'/'m' or 'feet'/'ft'.")
+    
+    # Search parameters
+    search_target: Optional[str] = Field(None, description="Target description for AI to search for during this mission item (e.g., 'vehicles', 'people', 'buildings').")
+    detection_behavior: Optional[str] = Field(None, description="Detection behavior: 'tag_and_continue' (mark targets and continue mission) or 'detect_and_monitor' (abort mission and circle detected target).")
 
 
 class UpdateMissionItemTool(PX4ToolBase):
     name: str = "update_mission_item"
-    description: str = "Update specific mission item by its sequence number. Use when user wants to modify a particular item by specifying its position in the mission. Can update position (GPS coordinates, relative positioning), altitude, and radius. Use for commands like 'change the second waypoint altitude to 300 feet', 'move item 1 to 2 miles north', 'update waypoint 3 to 37.7749, -122.4194', 'change the second orbit radius to 200 meters'. You CANNOT update a mission item TYPE. To change the type, first delete the old item then create a new one of the correct type."
+    description: str = "Update specific mission item by its sequence number. Can update waypoint, loiter, and survey items. Use when user wants to modify a particular item or when you need to correct a mistake. You CANNOT update a mission item TYPE. To change the type, first delete the old item then create a new one of the correct type."
     args_schema: type = UpdateMissionItemInput
     
     def __init__(self, mission_manager):
@@ -45,7 +49,8 @@ class UpdateMissionItemTool(PX4ToolBase):
     def _run(self, seq: int, latitude: Optional[float] = None, longitude: Optional[float] = None, mgrs: Optional[str] = None,
              distance: Optional[float] = None, heading: Optional[str] = None, distance_units: Optional[str] = None, 
              relative_reference_frame: Optional[str] = None, altitude: Optional[float] = None, altitude_units: Optional[str] = None, 
-             radius: Optional[float] = None, radius_units: Optional[str] = None) -> str:
+             radius: Optional[float] = None, radius_units: Optional[str] = None,
+             search_target: Optional[str] = None, detection_behavior: Optional[str] = None) -> str:
         # Create response
         response = ""
 
@@ -66,9 +71,9 @@ class UpdateMissionItemTool(PX4ToolBase):
                     item = mission.items[zero_based_seq]
                     changes_made = []
                     
-                    # Check if this item supports position updates (waypoint or loiter)
+                    # Check if this item supports position updates (waypoint, loiter, or survey)
                     command_type = getattr(item, 'command_type', None)
-                    supports_position = command_type in ['waypoint', 'loiter']
+                    supports_position = command_type in ['waypoint', 'loiter', 'survey']
                     
                     # Update GPS coordinates if provided
                     if latitude is not None and longitude is not None:
@@ -123,16 +128,27 @@ class UpdateMissionItemTool(PX4ToolBase):
                             item.altitude_units = altitude_units
                         changes_made.append(f"altitude to {altitude} {altitude_units or 'meters'}")
                     
-                    # Update radius if provided (only for loiter items)
+                    # Update radius if provided (for loiter and survey items)
                     if radius is not None and not response.startswith("Error:"):
-                        if command_type == 'loiter':
+                        if command_type in ['loiter', 'survey']:
                             if hasattr(item, 'radius'):
                                 item.radius = radius
                             if radius_units and hasattr(item, 'radius_units'):
                                 item.radius_units = radius_units
                             changes_made.append(f"radius to {radius} {radius_units or 'meters'}")
                         else:
-                            response = f"Error: Cannot modify radius on item {seq} - not a loiter/orbit command"
+                            response = f"Error: Cannot modify radius on item {seq} - not a loiter/survey command"
+                    
+                    # Update search parameters if provided
+                    if search_target is not None and not response.startswith("Error:"):
+                        if hasattr(item, 'search_target'):
+                            item.search_target = search_target
+                        changes_made.append(f"search_target to {search_target}")
+                    
+                    if detection_behavior is not None and not response.startswith("Error:"):
+                        if hasattr(item, 'detection_behavior'):
+                            item.detection_behavior = detection_behavior
+                        changes_made.append(f"detection_behavior to {detection_behavior}")
                     
                     # Check if we have a successful update
                     if not response.startswith("Error:"):

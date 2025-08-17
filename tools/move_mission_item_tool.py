@@ -11,13 +11,13 @@ from .tools import PX4ToolBase
 class MoveMissionItemInput(BaseModel):
     """Move/reposition specific mission item to a different position in the mission"""
     
-    seq: int = Field(description="Current position of mission item to move (1=first item, 2=second item, etc.). Extract from user phrases like 'move the second waypoint' (seq=2), 'reposition item 3' (seq=3).")
-    insert_at: int = Field(description="New position where item should be moved (1=first position, 2=second position, etc.). Extract from user phrases like 'move item 2 to position 5' (insert_at=5), 'put the waypoint at the beginning' (insert_at=1).")
+    seq: int = Field(description="Current position of mission item to move (1=first item, 2=second item, etc.).")
+    insert_at: int = Field(description="New position where item should be moved (1=first position, 2=second position, etc.).")
 
 
 class MoveMissionItemTool(PX4ToolBase):
     name: str = "move_mission_item"
-    description: str = "Move/reposition specific mission item to a different position in the mission. Use when user wants to reorder mission items by moving one item to a new position. Use for commands like 'move the second waypoint to position 5', 'put item 3 at the beginning', 'reposition the takeoff to be first', 'move the last item to position 2'. All other items automatically shift to accommodate the move."
+    description: str = "Move/reposition specific mission item to a different position in the mission. Use when user wants to reorder mission items by moving one item to a new position or when an item ends up in an unexpected position and you need to correct it. All other items automatically shift to accommodate the move."
     args_schema: type = MoveMissionItemInput
     
     def __init__(self, mission_manager):

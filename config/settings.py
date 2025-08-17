@@ -29,6 +29,7 @@ class AgentConfig:
     single_rtl_only: bool = True
     takeoff_must_be_first: bool = True
     rtl_must_be_last: bool = True
+    auto_fix_positioning: bool = True
 
 
 

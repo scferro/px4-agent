@@ -14,31 +14,33 @@ from core import MissionManager
 MODEL_PARAMETER_SCHEMAS = {
     'takeoff': {
         'Location Parameters': ['latitude', 'longitude', 'mgrs'],
-        'Altitude Parameters': ['altitude', 'altitude_units']
+        'Altitude Parameters': ['altitude', 'altitude_units'],
+        'Search Parameters': ['search_target', 'detection_behavior']
     },
     'waypoint': {
         'GPS Coordinates': ['latitude', 'longitude', 'mgrs'],
         'Relative Positioning': ['distance', 'heading', 'distance_units', 'relative_reference_frame'],
-        'Altitude Parameters': ['altitude', 'altitude_units']
+        'Altitude Parameters': ['altitude', 'altitude_units'],
+        'Search Parameters': ['search_target', 'detection_behavior']
     },
     'loiter': {
         'GPS Coordinates': ['latitude', 'longitude', 'mgrs'],
         'Relative Positioning': ['distance', 'heading', 'distance_units', 'relative_reference_frame'],
         'Orbit Parameters': ['radius', 'radius_units'],
-        'Altitude Parameters': ['altitude', 'altitude_units']
+        'Altitude Parameters': ['altitude', 'altitude_units'],
+        'Search Parameters': ['search_target', 'detection_behavior']
     },
     'rtl': {
-        'Altitude Parameters': ['altitude', 'altitude_units']
+        'Altitude Parameters': ['altitude', 'altitude_units'],
+        'Search Parameters': ['search_target', 'detection_behavior']
     },
     'survey': {
-        'GPS Coordinates (Center)': ['center_latitude', 'center_longitude', 'center_mgrs'],
-        'Relative Positioning (Center)': ['center_distance', 'center_heading', 'center_distance_units', 'center_relative_reference_frame'],
-        'Survey Area (Radius)': ['survey_radius', 'survey_radius_units'],
+        'GPS Coordinates': ['latitude', 'longitude', 'mgrs'],
+        'Relative Positioning': ['distance', 'heading', 'distance_units', 'relative_reference_frame'],
+        'Survey Area': ['radius', 'radius_units'],
         'Corner Points': ['corner1_lat', 'corner1_lon', 'corner1_mgrs', 'corner2_lat', 'corner2_lon', 'corner2_mgrs', 'corner3_lat', 'corner3_lon', 'corner3_mgrs', 'corner4_lat', 'corner4_lon', 'corner4_mgrs'],
-        'Survey Parameters': ['survey_altitude', 'survey_altitude_units']
-    },
-    'ai_search': {
-        'AI Search Parameters': ['status', 'target', 'behavior']
+        'Altitude Parameters': ['altitude', 'altitude_units'],
+        'Search Parameters': ['search_target', 'detection_behavior']
     }
 }
 
@@ -61,8 +63,7 @@ class PX4ToolBase(BaseTool):
             'waypoint': "Waypoint",
             'loiter': "Loiter",
             'rtl': "Return to Launch",
-            'survey': "Survey",
-            'ai_search': "AI Search"
+            'survey': "Survey"
         }
         return command_map.get(command_type, f"Unknown {command_type}")
     
@@ -73,12 +74,17 @@ class PX4ToolBase(BaseTool):
             return True, ""
         
         # Use the comprehensive mission validation from MissionManager with mode-specific rules
-        is_valid, error_list = self.mission_manager.validate_mission()
+        is_valid, message_list = self.mission_manager.validate_mission()
         
         if not is_valid:
             # Return first error as primary message
-            primary_error = error_list[0] if error_list else "Mission validation failed"
+            primary_error = message_list[0] if message_list else "Mission validation failed"
             return False, primary_error
+        
+        # Check for auto-fixes and report them
+        auto_fixes = [msg for msg in message_list if msg.startswith("Auto-fix:")]
+        if auto_fixes:
+            return True, ". ".join(auto_fixes)
         
         return True, ""
     
@@ -104,8 +110,7 @@ class PX4ToolBase(BaseTool):
             'waypoint': "📍", 
             'loiter': "🔄",
             'rtl': "🏠",
-            'survey': "🗺️",
-            'ai_search': "🔍"
+            'survey': "🗺️"
         }
         UNSPECIFIED_MARKER = "unspecified"
         
@@ -152,7 +157,6 @@ def get_px4_tools(mission_manager: MissionManager) -> list:
     from .add_rtl_tool import AddRTLTool
     from .add_loiter_tool import AddLoiterTool
     from .add_survey_tool import AddSurveyTool
-    from .add_ai_search_tool import AddAISearchTool
     from .update_mission_item_tool import UpdateMissionItemTool
     from .delete_mission_item_tool import DeleteMissionItemTool
     from .move_mission_item_tool import MoveMissionItemTool
@@ -163,7 +167,6 @@ def get_px4_tools(mission_manager: MissionManager) -> list:
         AddSurveyTool(mission_manager),
         AddRTLTool(mission_manager),
         AddLoiterTool(mission_manager),
-        AddAISearchTool(mission_manager),
         UpdateMissionItemTool(mission_manager),
         DeleteMissionItemTool(mission_manager),
         MoveMissionItemTool(mission_manager),

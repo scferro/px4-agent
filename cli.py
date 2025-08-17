@@ -12,8 +12,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from core.agent import PX4Agent
-from core import OutputFormatter
+from core import PX4Agent, OutputFormatter
 from config import get_settings
 
 def create_parser() -> argparse.ArgumentParser:

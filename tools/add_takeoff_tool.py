@@ -13,13 +13,13 @@ class TakeoffInput(BaseModel):
     """Launch drone from ground to specified flight altitude"""
     
     # GPS coordinates for takeoff location - usually leave None
-    latitude: Optional[float] = Field(None, description="Takeoff GPS latitude. Usually leave None to takeoff from current drone position. Only specify if user explicitly mentions takeoff location like 'takeoff from 37.7749, -122.4194'. Use ONLY when latitude is specified.")
-    longitude: Optional[float] = Field(None, description="Takeoff GPS longitude. Usually leave None to takeoff from current drone position. Only specify if user explicitly mentions takeoff location like 'takeoff from 37.7749, -122.4194'. Use ONLY when longitude is specified.")
+    latitude: Optional[float] = Field(None, description="Takeoff GPS latitude. Usually leave None to takeoff from current drone position. Use ONLY when latitude is specified.")
+    longitude: Optional[float] = Field(None, description="Takeoff GPS longitude. Usually leave None to takeoff from current drone position. Use ONLY when longitude is specified.")
     mgrs: Optional[str] = Field(None, description="MGRS coordinate string. Use when user provides MGRS grid coordinates for takeoff location.")
     
     # Target altitude - required parameter
-    altitude: Optional[float] = Field(None, description="Target takeoff altitude that drone will climb to. Extract from phrases like 'takeoff to 250 feet' (altitude=250), 'launch to 100 meters' (altitude=100), 'take off to 20m' (altitude=20). This sets the flight altitude for the mission.")
-    altitude_units: Optional[str] = Field(None, description="Units for takeoff altitude. Extract from user input: 'meters'/'m' or 'feet'/'ft'. Example: 'takeoff to 250 feet' uses 'feet'.")
+    altitude: Optional[float] = Field(None, description="Target takeoff altitude that drone will climb to. Extract from phrases like 'takeoff to 250 feet' (altitude=250), 'launch to 100 meters'. This sets the flight altitude for the mission.")
+    altitude_units: Optional[str] = Field(None, description="Units for takeoff altitude. Extract from user input: 'meters'/'m' or 'feet'/'ft'.")
 
 
 class AddTakeoffTool(PX4ToolBase):
@@ -65,15 +65,20 @@ class AddTakeoffTool(PX4ToolBase):
             )
             
             # Validate mission after adding takeoff
-            is_valid, error_msg = self._validate_mission_after_action()
+            is_valid, validation_msg = self._validate_mission_after_action()
             if not is_valid:
                 # Rollback the action
                 self._restore_mission_state(saved_state)
-                return f"Planning Error: {error_msg}" + self._get_mission_state_summary()
+                return f"Planning Error: {validation_msg}" + self._get_mission_state_summary()
             else:
                 # Build response message with preserved units
                 altitude_msg = f"{altitude} {altitude_units}" if altitude is not None else "default altitude"
                 response = f"Takeoff command added to mission{coord_desc}, Alt={altitude_msg} (Item {item.seq + 1})"
+                
+                # Include auto-fix notifications if any
+                if validation_msg:
+                    response += f". {validation_msg}"
+                
                 response += self._get_mission_state_summary()
             
         except Exception as e:

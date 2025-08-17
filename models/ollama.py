@@ -1,6 +1,6 @@
 """
 Ollama Model Interface for PX4 Agent
-Handles communication with Ollama models, specifically Granite 3.3 2B
+Handles communication with Ollama models
 """
 
 from typing import Dict, Any, Optional, List
@@ -90,7 +90,6 @@ class OllamaInterface:
                 f"Available models: {model_list}. "
                 f"Use 'ollama pull {self.model_name}' to download it."
             )
-        
         # Test simple generation
         try:
             llm = self.get_llm()
@@ -98,46 +97,3 @@ class OllamaInterface:
             return True, "Connection successful"
         except Exception as e:
             return False, f"Model test failed: {str(e)}"
-    
-    def get_system_info(self) -> Dict[str, Any]:
-        """Get system information from Ollama"""
-        return {
-            "model_name": self.model_name,
-            "base_url": self.base_url,
-            "temperature": self.temperature,
-            "top_p": self.top_p,
-            "top_k": self.top_k,
-            "timeout": self.timeout,
-            "max_tokens": self.max_tokens,
-            "service_available": self.is_available(),
-            "model_available": self.is_model_available(),
-            "available_models": self.list_models()
-        }
-
-def create_ollama_interface(model_name: Optional[str] = None, 
-                           base_url: Optional[str] = None) -> OllamaInterface:
-    """Factory function to create Ollama interface"""
-    return OllamaInterface(model_name, base_url)
-
-def check_ollama_setup() -> tuple[bool, List[str]]:
-    """Check Ollama setup and provide setup instructions"""
-    interface = create_ollama_interface()
-    issues = []
-    
-    # Check if Ollama is running
-    if not interface.is_available():
-        issues.append("Ollama service is not running")
-        issues.append("Please start Ollama: 'ollama serve'")
-    
-    # Check if model is available
-    elif not interface.is_model_available():
-        issues.append(f"Model '{interface.model_name}' is not available")
-        issues.append(f"Please download: 'ollama pull {interface.model_name}'")
-    
-    # Test connection
-    else:
-        success, message = interface.test_connection()
-        if not success:
-            issues.append(f"Connection test failed: {message}")
-    
-    return len(issues) == 0, issues

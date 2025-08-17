@@ -12,7 +12,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from tools import get_px4_tools
-from models import create_ollama_interface, check_ollama_setup
+from models import OllamaInterface
 from prompts import get_system_prompt
 from config import get_settings
 from core import MissionManager
@@ -25,7 +25,7 @@ class PX4Agent:
         self.verbose = verbose or self.settings.agent.verbose_default
         
         # Initialize components
-        self.ollama_interface = create_ollama_interface()
+        self.ollama_interface = OllamaInterface()
         self.tools = []  # Will be set when mode is selected
         self.mission_manager = None  # Will be set when mode is selected
         
@@ -92,14 +92,16 @@ class PX4Agent:
             self.mission_manager.create_mission()
             
             # Inject system prompt only once when mission is first created
-            base_system_prompt = get_system_prompt("mission_new")
-            mission_state_summary = self.mission_manager.get_mission_state_summary()
-            enhanced_system_prompt = f"{base_system_prompt}{mission_state_summary}"
-            self.chat_history.append(SystemMessage(content=enhanced_system_prompt))
+            base_system_prompt = get_system_prompt("mission")
+            self.chat_history.append(SystemMessage(content=base_system_prompt))
         
         try:
-            # Build messages starting with current user input
-            messages = [HumanMessage(content=user_input)]
+            # Append current mission state to user message for context
+            mission_state_summary = self.mission_manager.get_mission_state_summary()
+            enhanced_user_input = f"{user_input}{mission_state_summary}"
+            
+            # Build messages with enhanced user input
+            messages = [HumanMessage(content=enhanced_user_input)]
             
             # Add all chat history (including system message from first creation)
             all_messages = self.chat_history + messages
@@ -202,10 +204,14 @@ class PX4Agent:
         system_prompt = get_system_prompt("command")
         
         try:
+            # Append current mission state to user message for context
+            mission_state_summary = self.mission_manager.get_mission_state_summary()
+            enhanced_user_input = f"{user_input}{mission_state_summary}"
+            
             # LangGraph uses messages instead of system_prompt/input format
             messages = [
                 SystemMessage(content=system_prompt),
-                HumanMessage(content=user_input)
+                HumanMessage(content=enhanced_user_input)
             ]
             
             # Let LangGraph handle the conversation flow - use unique thread ID to prevent state carryover

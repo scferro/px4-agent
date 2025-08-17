@@ -19,8 +19,7 @@ class OutputFormatter:
         'waypoint': "📍 Waypoint",
         'loiter': "🔄 Loiter",
         'rtl': "🏠 RTL",
-        'survey': "🗺️ Survey",
-        'ai_search': "🔍 AI Search"
+        'survey': "🗺️ Survey"
     }
     
     UNSPECIFIED_MARKER = "unspecified"
@@ -128,14 +127,13 @@ class OutputFormatter:
                 ]
                 sections.append(f"Altitude Parameters:\n  " + "\n  ".join(alt_params))
             
-            # AI Search Parameters - show if any AI search parameters specified
-            if command_type == 'ai_search' and (item.get('status') is not None or item.get('target') is not None or item.get('behavior') is not None):
-                ai_params = [
-                    f"status: {item.get('status') or self.UNSPECIFIED_MARKER}",
-                    f"target: {item.get('target') or self.UNSPECIFIED_MARKER}",
-                    f"behavior: {item.get('behavior') or self.UNSPECIFIED_MARKER}"
+            # Search Parameters - show if any search parameters specified (for all command types)
+            if (item.get('search_target') is not None or item.get('detection_behavior') is not None):
+                search_params = [
+                    f"search_target: {item.get('search_target') or self.UNSPECIFIED_MARKER}",
+                    f"detection_behavior: {item.get('detection_behavior') or self.UNSPECIFIED_MARKER}"
                 ]
-                sections.append(f"AI Search Parameters:\n  " + "\n  ".join(ai_params))
+                sections.append(f"Search Parameters:\n  " + "\n  ".join(search_params))
             
             if sections:
                 params_display = "\n\n".join(sections)

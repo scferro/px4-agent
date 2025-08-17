@@ -40,14 +40,19 @@ class AddRTLTool(PX4ToolBase):
             )
             
             # Validate mission after adding RTL
-            is_valid, error_msg = self._validate_mission_after_action()
+            is_valid, validation_msg = self._validate_mission_after_action()
             if not is_valid:
                 # Rollback the action
                 self._restore_mission_state(saved_state)
-                return f"Planning Error: {error_msg}" + self._get_mission_state_summary()
+                return f"Planning Error: {validation_msg}" + self._get_mission_state_summary()
             else:
                 altitude_msg = f" at {altitude} {altitude_units}" if altitude is not None else ""
                 response = f"Return to Launch command added to mission{altitude_msg} (Item {item.seq + 1})"
+                
+                # Include auto-fix notifications if any
+                if validation_msg:
+                    response += f". {validation_msg}"
+                
                 response += self._get_mission_state_summary()
             
         except Exception as e:
