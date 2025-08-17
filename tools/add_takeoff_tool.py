@@ -13,8 +13,9 @@ class TakeoffInput(BaseModel):
     """Launch drone from ground to specified flight altitude"""
     
     # GPS coordinates for takeoff location - usually leave None
-    latitude: Optional[float] = Field(None, description="Takeoff GPS latitude. Usually leave None to takeoff from current drone position. Only specify if user explicitly mentions takeoff location like 'takeoff from 37.7749, -122.4194'.")
-    longitude: Optional[float] = Field(None, description="Takeoff GPS longitude. Usually leave None to takeoff from current drone position. Only specify if user explicitly mentions takeoff location like 'takeoff from 37.7749, -122.4194'.")
+    latitude: Optional[float] = Field(None, description="Takeoff GPS latitude. Usually leave None to takeoff from current drone position. Only specify if user explicitly mentions takeoff location like 'takeoff from 37.7749, -122.4194'. Use ONLY when latitude is specified.")
+    longitude: Optional[float] = Field(None, description="Takeoff GPS longitude. Usually leave None to takeoff from current drone position. Only specify if user explicitly mentions takeoff location like 'takeoff from 37.7749, -122.4194'. Use ONLY when longitude is specified.")
+    mgrs: Optional[str] = Field(None, description="MGRS coordinate string. Use when user provides MGRS grid coordinates for takeoff location.")
     
     # Target altitude - required parameter
     altitude: Optional[float] = Field(None, description="Target takeoff altitude that drone will climb to. Extract from phrases like 'takeoff to 250 feet' (altitude=250), 'launch to 100 meters' (altitude=100), 'take off to 20m' (altitude=20). This sets the flight altitude for the mission.")
@@ -30,7 +31,8 @@ class AddTakeoffTool(PX4ToolBase):
         super().__init__(mission_manager)
     
     def _run(self, latitude: Optional[float] = None, longitude: Optional[float] = None, 
-             altitude: Optional[float] = None, altitude_units: Optional[str] = None) -> str:
+             altitude: Optional[float] = None, altitude_units: Optional[str] = None,
+             mgrs: Optional[str] = None) -> str:
         # Create response
         response = ""
 
@@ -43,6 +45,8 @@ class AddTakeoffTool(PX4ToolBase):
             coord_desc = ""
             if latitude is not None and longitude is not None:
                 coord_desc = f" from lat/long ({latitude:.6f}, {longitude:.6f})"
+            elif mgrs is not None:
+                coord_desc = f" from MGRS {mgrs}"
             else:
                 coord_desc = ""
             
@@ -53,10 +57,11 @@ class AddTakeoffTool(PX4ToolBase):
             
             item = self.mission_manager.add_takeoff(
                 actual_lat, actual_lon, actual_alt, 
-                altitude_units=altitude_units,  # Store EXACTLY what model provided
-                original_altitude=altitude,
-                original_latitude=latitude,
-                original_longitude=longitude
+                altitude_units=altitude_units,
+                latitude=latitude,
+                longitude=longitude,
+                altitude=altitude,
+                mgrs=mgrs
             )
             
             # Validate mission after adding takeoff

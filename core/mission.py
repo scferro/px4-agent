@@ -26,14 +26,15 @@ class MissionItem:
     longitude: Optional[float] = None
     mgrs: Optional[str] = None
     distance: Optional[float] = None
-    heading: Optional[float] = None
+    heading: Optional[str] = None  # Text direction like 'north', 'east', etc.
     altitude: Optional[float] = None
     radius: Optional[float] = None
     
-    # Unit specifications - store EXACTLY what model provided
+    # Unit specifications and reference frame - store EXACTLY what model provided
     altitude_units: Optional[str] = None
     distance_units: Optional[str] = None
     radius_units: Optional[str] = None
+    relative_reference_frame: Optional[str] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format"""
@@ -53,6 +54,7 @@ class MissionItem:
             'altitude_units': self.altitude_units,
             'distance_units': self.distance_units,
             'radius_units': self.radius_units,
+            'relative_reference_frame': self.relative_reference_frame,
         }
 
 @dataclass
@@ -142,50 +144,70 @@ class MissionManager:
         return item
     
     def add_takeoff(self, lat: float, lon: float, alt: float, 
-                   altitude_units: Optional[str] = None, **original_params) -> MissionItem:
+                   altitude_units: Optional[str] = None, 
+                   latitude: Optional[float] = None, longitude: Optional[float] = None, 
+                   altitude: Optional[float] = None, mgrs: Optional[str] = None) -> MissionItem:
         """Add takeoff command - always goes at the beginning"""
         mission = self._get_current_mission_or_raise()
         
         item = MissionItem(
             seq=0,  # Will be set by insert_item_at
             command_type='takeoff',  # Track what type of command this is
-            # Store ONLY what model can provide
-            altitude=original_params.get('original_altitude'),
+            # Store model parameters directly
+            altitude=altitude,
             altitude_units=altitude_units,
-            latitude=original_params.get('original_latitude'),
-            longitude=original_params.get('original_longitude')
+            latitude=latitude,
+            longitude=longitude,
+            mgrs=mgrs
         )
         return self.insert_item_at(item, 1)  # Always insert at position 1 (first)
     
     def add_waypoint(self, lat: float, lon: float, alt: float,
-                    altitude_units: Optional[str] = None, insert_at: Optional[int] = None, **original_params) -> MissionItem:
+                    altitude_units: Optional[str] = None, insert_at: Optional[int] = None, 
+                    latitude: Optional[float] = None, longitude: Optional[float] = None, 
+                    altitude: Optional[float] = None, mgrs: Optional[str] = None,
+                    distance: Optional[float] = None, heading: Optional[str] = None,
+                    distance_units: Optional[str] = None, relative_reference_frame: Optional[str] = None) -> MissionItem:
         """Add waypoint command"""
         mission = self._get_current_mission_or_raise()
         
         item = MissionItem(
             seq=0,  # Will be set by insert_item_at
             command_type='waypoint',  # Track what type of command this is
-            # Store ONLY what model can provide
-            altitude=original_params.get('original_altitude'),
+            # Store model parameters directly
+            altitude=altitude,
             altitude_units=altitude_units,
-            latitude=original_params.get('original_latitude'),
-            longitude=original_params.get('original_longitude')
+            latitude=latitude,
+            longitude=longitude,
+            mgrs=mgrs,
+            distance=distance,
+            heading=heading,
+            distance_units=distance_units,
+            relative_reference_frame=relative_reference_frame
         )
         return self.insert_item_at(item, insert_at)
     
     
-    def add_return_to_launch(self) -> MissionItem:
+    def add_return_to_launch(self, altitude: Optional[float] = None, 
+                            altitude_units: Optional[str] = None) -> MissionItem:
         """Add return to launch command - always goes at the end"""
         mission = self._get_current_mission_or_raise()
         
         item = MissionItem(
             seq=0,  # Will be set by insert_item_at
-            command_type='rtl'  # Track what type of command this is
+            command_type='rtl',  # Track what type of command this is
+            altitude=altitude,
+            altitude_units=altitude_units
         )
         return self.insert_item_at(item, None)  # None = add at end
     
     def add_loiter(self, lat: float, lon: float, alt: float,
-                  radius: float, radius_units: Optional[str] = None, insert_at: Optional[int] = None, **original_params) -> MissionItem:
+                  radius: float, radius_units: Optional[str] = None, insert_at: Optional[int] = None,
+                  latitude: Optional[float] = None, longitude: Optional[float] = None, 
+                  altitude: Optional[float] = None, altitude_units: Optional[str] = None,
+                  mgrs: Optional[str] = None, distance: Optional[float] = None, 
+                  heading: Optional[str] = None, distance_units: Optional[str] = None,
+                  relative_reference_frame: Optional[str] = None) -> MissionItem:
         """Add loiter command"""
         mission = self._get_current_mission_or_raise()
         
@@ -193,14 +215,54 @@ class MissionManager:
         item = MissionItem(
             seq=0,  # Will be set by insert_item_at
             command_type='loiter',  # Track what type of command this is
-            # Store ONLY what model can provide
-            radius=original_params.get('original_radius'),
+            # Store model parameters directly
+            radius=radius,
             radius_units=radius_units,
-            altitude=original_params.get('original_altitude'),
-            altitude_units=original_params.get('altitude_units'),
-            latitude=original_params.get('original_latitude'),
-            longitude=original_params.get('original_longitude')
+            altitude=altitude,
+            altitude_units=altitude_units,
+            latitude=latitude,
+            longitude=longitude,
+            mgrs=mgrs,
+            distance=distance,
+            heading=heading,
+            distance_units=distance_units,
+            relative_reference_frame=relative_reference_frame
         )
+        return self.insert_item_at(item, insert_at)
+    
+    def add_survey(self, mode: str, center_lat: float, center_lon: float, 
+                  radius: Optional[float] = None, corners: Optional[List[Dict]] = None,
+                  altitude: float = 100.0, radius_units: Optional[str] = None, 
+                  altitude_units: Optional[str] = None, insert_at: Optional[int] = None,
+                  center_latitude: Optional[float] = None, center_longitude: Optional[float] = None,
+                  survey_radius: Optional[float] = None, survey_altitude: Optional[float] = None,
+                  center_mgrs: Optional[str] = None, center_distance: Optional[float] = None,
+                  center_heading: Optional[str] = None, center_distance_units: Optional[str] = None,
+                  center_relative_reference_frame: Optional[str] = None) -> MissionItem:
+        """Add survey command"""
+        mission = self._get_current_mission_or_raise()
+        
+        item = MissionItem(
+            seq=0,  # Will be set by insert_item_at
+            command_type='survey',  # Track what type of command this is
+            # Store model parameters directly
+            radius=survey_radius,
+            radius_units=radius_units,
+            altitude=survey_altitude,
+            altitude_units=altitude_units,
+            latitude=center_latitude,
+            longitude=center_longitude,
+            mgrs=center_mgrs,
+            distance=center_distance,
+            heading=center_heading,
+            distance_units=center_distance_units,
+            relative_reference_frame=center_relative_reference_frame
+        )
+        
+        # Store survey-specific data as attributes
+        item.survey_mode = mode
+        item.corners = corners
+        
         return self.insert_item_at(item, insert_at)
     
     def validate_mission(self) -> Tuple[bool, List[str]]:
@@ -287,12 +349,10 @@ class MissionManager:
 
         if mission and mission.items:
             for i, item in enumerate(mission.items):
-                cmd_name = self._get_command_name(getattr(item, 'command_type', 'unknown'))
                 command_type = getattr(item, 'command_type', 'unknown')
                 
                 summary += f"\n<item_{i+1}>"
                 summary += f"\n  <type>{command_type}</type>"
-                summary += f"\n  <name>{cmd_name}</name>"
                 
                 # Add key parameters
                 if hasattr(item, 'altitude') and item.altitude is not None:
@@ -315,14 +375,4 @@ class MissionManager:
         
         summary += "\n</mission_state>"
         return summary
-    
-    def _get_command_name(self, command_type: str) -> str:
-        """Get human-readable command name from type"""
-        command_map = {
-            'takeoff': "Takeoff",
-            'waypoint': "Waypoint",
-            'loiter': "Loiter",
-            'rtl': "Return to Launch"
-        }
-        return command_map.get(command_type, f"Unknown {command_type}")
     

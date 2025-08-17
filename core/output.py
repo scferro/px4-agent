@@ -13,20 +13,13 @@ from rich.tree import Tree
 
 class OutputFormatter:
     """Handles formatted output for different modes and verbosity levels"""
-    
-    # Constants
-    COMMAND_EMOJIS = {
-        'takeoff': "🚀",
-        'waypoint': "📍", 
-        'loiter': "🔄",
-        'rtl': "🏠"
-    }
-    
-    COMMAND_NAMES = {
-        'takeoff': "Takeoff",
-        'waypoint': "Waypoint",
-        'loiter': "Loiter",
-        'rtl': "RTL"
+
+    COMMAND_DISPLAY = {
+        'takeoff': "🚀 Takeoff",
+        'waypoint': "📍 Waypoint",
+        'loiter': "🔄 Loiter",
+        'rtl': "🏠 RTL",
+        'survey': "🗺️ Survey"
     }
     
     UNSPECIFIED_MARKER = "unspecified"
@@ -62,26 +55,21 @@ class OutputFormatter:
         
         for item in items:
             command_type = item.get('command_type', 'unknown')
-            command_name = self._get_command_display_name_from_type(command_type)
-            
-            emoji = self.COMMAND_EMOJIS.get(command_type, '❓')
             item_num = f"{item['seq'] + 1}"
-            command_display = f"{emoji} {command_name.upper()}"
+            command_display = self.COMMAND_DISPLAY.get(command_type, f"Unknown {command_type}")
             
             # Build parameters display - same logic as before
             params_display = ""
             
-            if command_type == 'rtl':
-                params_display = "(No parameters available)"
-            else:
-                sections = []
+            # All command types use the same parameter display logic
+            sections = []
+            
+            # Location Parameters - show if any location info specified
+            if (item.get('latitude') is not None or item.get('longitude') is not None or 
+                item.get('mgrs') is not None or item.get('distance') is not None or item.get('relative_reference_frame') is not None):
                 
-                # Location Parameters - show if any location info specified
-                if (item.get('latitude') is not None or item.get('longitude') is not None or 
-                    item.get('mgrs') is not None or item.get('distance') is not None or item.get('relative_reference_frame') is not None):
-                    
-                    # Lat/Long
-                    if (item.get('latitude') is not None or item.get('longitude') is not None):
+                # Lat/Long
+                if (item.get('latitude') is not None or item.get('longitude') is not None):
                         gps_params = []
                         if item.get('latitude') is not None:
                             gps_params.append(f"latitude: {item['latitude']}")
@@ -93,14 +81,14 @@ class OutputFormatter:
                             gps_params.append(f"longitude: {self.UNSPECIFIED_MARKER}")
                         sections.append(f"Lat/Long Coordinates:\n  " + "\n  ".join(gps_params))
                     
-                    # MGRS
-                    if (item.get('mgrs') is not None):
+                # MGRS
+                if (item.get('mgrs') is not None):
                         mgrs_params = []
                         mgrs_params.append(f"mgrs: {item['mgrs']}")
                         sections.append(f"MGRS Coordinates:\n  " + "\n  ".join(mgrs_params))
                     
-                    # Relative Positioning section
-                    if (item.get('distance') is not None or item.get('heading') is not None or item.get('relative_reference_frame') is not None):
+                # Relative Positioning section
+                if (item.get('distance') is not None or item.get('heading') is not None or item.get('relative_reference_frame') is not None):
                         rel_params = []
                         if item.get('distance') is not None:
                             rel_params.append(f"distance: {item['distance']}")
@@ -115,35 +103,34 @@ class OutputFormatter:
                         else:
                             rel_params.append(f"relative_reference_frame: {self.UNSPECIFIED_MARKER}")                            
                         sections.append(f"Relative Positioning:\n  " + "\n  ".join(rel_params))
-                
-                # Orbit Parameters - show if radius specified
-                if command_type == 'loiter' and item.get('radius') is not None:
-                    orbit_params = [
-                        f"radius: {item['radius']}",
-                        f"radius_units: {item.get('radius_units') or self.UNSPECIFIED_MARKER}"
-                    ]
-                    sections.append(f"Orbit Parameters:\n  " + "\n  ".join(orbit_params))
-                
-                # Altitude Parameters - show if altitude specified
-                if item.get('altitude') is not None:
-                    alt_params = [
-                        f"altitude: {item['altitude']}",
-                        f"altitude_units: {item.get('altitude_units') or self.UNSPECIFIED_MARKER}"
-                    ]
-                    sections.append(f"Altitude Parameters:\n  " + "\n  ".join(alt_params))
-                
-                if sections:
-                    params_display = "\n\n".join(sections)
-                else:
-                    params_display = "(No parameters specified)"
+            
+            # Radius Parameters - show if radius specified (for loiter and survey)
+            if (command_type == 'loiter' or command_type == 'survey') and item.get('radius') is not None:
+                radius_params = [
+                    f"radius: {item['radius']}",
+                    f"radius_units: {item.get('radius_units') or self.UNSPECIFIED_MARKER}"
+                ]
+                if command_type == 'loiter':
+                    sections.append(f"Orbit Parameters:\n  " + "\n  ".join(radius_params))
+                elif command_type == 'survey':
+                    sections.append(f"Survey Area:\n  " + "\n  ".join(radius_params))
+            
+            # Altitude Parameters - show if altitude specified
+            if item.get('altitude') is not None:
+                alt_params = [
+                    f"altitude: {item['altitude']}",
+                    f"altitude_units: {item.get('altitude_units') or self.UNSPECIFIED_MARKER}"
+                ]
+                sections.append(f"Altitude Parameters:\n  " + "\n  ".join(alt_params))
+            
+            if sections:
+                params_display = "\n\n".join(sections)
+            else:
+                params_display = "(No parameters specified)"
             
             table.add_row(item_num, command_display, params_display)
         
         return table
-    
-    def _get_command_display_name_from_type(self, command_type: str) -> str:
-        """Get display name for command by type"""
-        return self.COMMAND_NAMES.get(command_type, f"Unknown {command_type}")
     
     def print_error(self, message: str, details: Optional[str] = None):
         """Print error message"""
