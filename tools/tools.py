@@ -36,6 +36,9 @@ MODEL_PARAMETER_SCHEMAS = {
         'Survey Area (Radius)': ['survey_radius', 'survey_radius_units'],
         'Corner Points': ['corner1_lat', 'corner1_lon', 'corner1_mgrs', 'corner2_lat', 'corner2_lon', 'corner2_mgrs', 'corner3_lat', 'corner3_lon', 'corner3_mgrs', 'corner4_lat', 'corner4_lon', 'corner4_mgrs'],
         'Survey Parameters': ['survey_altitude', 'survey_altitude_units']
+    },
+    'ai_search': {
+        'AI Search Parameters': ['status', 'target', 'behavior']
     }
 }
 
@@ -58,7 +61,8 @@ class PX4ToolBase(BaseTool):
             'waypoint': "Waypoint",
             'loiter': "Loiter",
             'rtl': "Return to Launch",
-            'survey': "Survey"
+            'survey': "Survey",
+            'ai_search': "AI Search"
         }
         return command_map.get(command_type, f"Unknown {command_type}")
     
@@ -100,7 +104,8 @@ class PX4ToolBase(BaseTool):
             'waypoint': "📍", 
             'loiter': "🔄",
             'rtl': "🏠",
-            'survey': "🗺️"
+            'survey': "🗺️",
+            'ai_search': "🔍"
         }
         UNSPECIFIED_MARKER = "unspecified"
         
@@ -147,6 +152,7 @@ def get_px4_tools(mission_manager: MissionManager) -> list:
     from .add_rtl_tool import AddRTLTool
     from .add_loiter_tool import AddLoiterTool
     from .add_survey_tool import AddSurveyTool
+    from .add_ai_search_tool import AddAISearchTool
     from .update_mission_item_tool import UpdateMissionItemTool
     from .delete_mission_item_tool import DeleteMissionItemTool
     
@@ -156,6 +162,7 @@ def get_px4_tools(mission_manager: MissionManager) -> list:
         AddSurveyTool(mission_manager),
         AddRTLTool(mission_manager),
         AddLoiterTool(mission_manager),
+        AddAISearchTool(mission_manager),
         UpdateMissionItemTool(mission_manager),
         DeleteMissionItemTool(mission_manager),
     ]

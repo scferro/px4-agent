@@ -25,7 +25,6 @@ class AgentConfig:
     max_mission_items: int = 100
     auto_validate: bool = True
     verbose_default: bool = False
-    require_takeoff: bool = True
     single_takeoff_only: bool = True
     single_rtl_only: bool = True
     takeoff_must_be_first: bool = True

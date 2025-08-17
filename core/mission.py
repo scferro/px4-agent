@@ -36,6 +36,11 @@ class MissionItem:
     radius_units: Optional[str] = None
     relative_reference_frame: Optional[str] = None
     
+    # AI Search parameters
+    status: Optional[str] = None
+    target: Optional[str] = None
+    behavior: Optional[str] = None
+    
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format"""
         return {
@@ -55,6 +60,9 @@ class MissionItem:
             'distance_units': self.distance_units,
             'radius_units': self.radius_units,
             'relative_reference_frame': self.relative_reference_frame,
+            'status': self.status,
+            'target': self.target,
+            'behavior': self.behavior,
         }
 
 @dataclass
@@ -265,6 +273,20 @@ class MissionManager:
         
         return self.insert_item_at(item, insert_at)
     
+    def add_ai_search(self, status: Optional[str] = None, target: Optional[str] = None,
+                     behavior: Optional[str] = None, insert_at: Optional[int] = None) -> MissionItem:
+        """Add AI search command"""
+        mission = self._get_current_mission_or_raise()
+        
+        item = MissionItem(
+            seq=0,  # Will be set by insert_item_at
+            command_type='ai_search',  # Track what type of command this is
+            status=status,
+            target=target,
+            behavior=behavior
+        )
+        return self.insert_item_at(item, insert_at)
+    
     def validate_mission(self) -> Tuple[bool, List[str]]:
         """Validate mission for safety and completeness"""
         mission = self._get_current_mission_or_raise()
@@ -283,8 +305,6 @@ class MissionManager:
             # Strict validation for mission mode (building complete missions)
             has_takeoff = any(getattr(item, 'command_type', None) == 'takeoff' for item in mission.items)
             has_rtl = any(getattr(item, 'command_type', None) == 'rtl' for item in mission.items)
-            if settings.agent.require_takeoff and not has_takeoff:
-                errors.append("Mission should start with a takeoff command")
             
             # Check takeoff positioning
             if settings.agent.takeoff_must_be_first and has_takeoff:
