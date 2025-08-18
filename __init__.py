@@ -2,8 +2,8 @@
 PX4 Agent - Intelligent drone mission planning with LangChain and Granite 3.3 2B
 """
 
-from .agent import PX4Agent
-from .core import OutputFormatter
+from .core import PX4Agent
+from .cli import OutputFormatter
 from .config import get_settings, reload_settings
 
 __version__ = "0.1.0"

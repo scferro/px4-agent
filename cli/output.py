@@ -53,7 +53,10 @@ class OutputFormatter:
         table.add_column("Command", style="green", width=20)
         table.add_column("Parameters", style="blue")
         
-        for item in items:
+        for idx, item in enumerate(items):
+            # Add section separator before each item (except the first)
+            if idx > 0:
+                table.add_section()
             command_type = item.get('command_type', 'unknown')
             item_num = f"{item['seq'] + 1}"
             command_display = self.COMMAND_DISPLAY.get(command_type, f"Unknown {command_type}")
@@ -64,9 +67,10 @@ class OutputFormatter:
             # All command types use the same parameter display logic
             sections = []
             
-            # Location Parameters - show if any location info specified
+            # Location Parameters - show if any location info specified or if takeoff (for VTOL heading)
             if (item.get('latitude') is not None or item.get('longitude') is not None or 
-                item.get('mgrs') is not None or item.get('distance') is not None or item.get('relative_reference_frame') is not None):
+                item.get('mgrs') is not None or item.get('distance') is not None or item.get('relative_reference_frame') is not None or
+                item.get('command_type') == 'takeoff'):
                 
                 # Lat/Long
                 if (item.get('latitude') is not None or item.get('longitude') is not None):
@@ -86,9 +90,18 @@ class OutputFormatter:
                         mgrs_params = []
                         mgrs_params.append(f"mgrs: {item['mgrs']}")
                         sections.append(f"MGRS Coordinates:\n  " + "\n  ".join(mgrs_params))
+                
+                # VTOL Parameters (for takeoff heading) - always show for takeoff
+                if item.get('command_type') == 'takeoff':
+                        vtol_params = []
+                        if item.get('heading') is not None:
+                            vtol_params.append(f"heading: {item['heading']}")
+                        else:
+                            vtol_params.append(f"heading: {self.UNSPECIFIED_MARKER}")
+                        sections.append(f"VTOL Parameters:\n  " + "\n  ".join(vtol_params))
                     
-                # Relative Positioning section
-                if (item.get('distance') is not None or item.get('heading') is not None or item.get('relative_reference_frame') is not None):
+                # Relative Positioning section (exclude takeoff items - they use VTOL Parameters)
+                if (item.get('distance') is not None or (item.get('heading') is not None and item.get('command_type') != 'takeoff') or item.get('relative_reference_frame') is not None):
                         rel_params = []
                         if item.get('distance') is not None:
                             rel_params.append(f"distance: {item['distance']}")

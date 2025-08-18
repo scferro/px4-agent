@@ -71,9 +71,10 @@ class UpdateMissionItemTool(PX4ToolBase):
                     item = mission.items[zero_based_seq]
                     changes_made = []
                     
-                    # Check if this item supports position updates (waypoint, loiter, or survey)
+                    # Check if this item supports position updates (waypoint, loiter, survey) or heading (takeoff)
                     command_type = getattr(item, 'command_type', None)
                     supports_position = command_type in ['waypoint', 'loiter', 'survey']
+                    supports_heading = command_type in ['takeoff', 'waypoint', 'loiter', 'survey']
                     
                     # Update GPS coordinates if provided
                     if latitude is not None and longitude is not None:
@@ -119,6 +120,14 @@ class UpdateMissionItemTool(PX4ToolBase):
                             changes_made.append(f"position to {distance}{units_text} {heading} from {ref_frame}")
                         else:
                             response = f"Error: Cannot modify relative position on item {seq} - {command_type} commands don't support positioning"
+                    
+                    # Update heading only (for takeoff VTOL transition direction)
+                    if heading is not None and distance is None and not response.startswith("Error:"):
+                        if supports_heading:
+                            item.heading = heading
+                            changes_made.append(f"heading to {heading}")
+                        else:
+                            response = f"Error: Cannot modify heading on item {seq} - {command_type} commands don't support heading"
                     
                     # Update altitude if provided
                     if altitude is not None and not response.startswith("Error:"):

@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional, List
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
-from core import MissionManager
+from core.manager import MissionManager
 from config.settings import get_agent_settings
 
 
@@ -16,6 +16,7 @@ MODEL_PARAMETER_SCHEMAS = {
     'takeoff': {
         'Location Parameters': ['latitude', 'longitude', 'mgrs'],
         'Altitude Parameters': ['altitude', 'altitude_units'],
+        'VTOL Parameters': ['heading'],
         'Search Parameters': ['search_target', 'detection_behavior']
     },
     'waypoint': {

@@ -21,7 +21,7 @@ class LoiterInput(BaseModel):
     mgrs: Optional[str] = Field(None, description="MGRS coordinate for orbit center. Use ONLY when user provides MGRS coordinates.")
     
     # Relative positioning for orbit center - use for "orbit 2 miles north of here"
-    distance: Optional[float] = Field(None, description="Distance to orbit center from reference point. Use with heading.")
+    distance: Optional[float] = Field(None, description="Distance to orbit center from reference point. Use with heading. Can set to 0.0 to oribt AT the reference frame.")
     heading: Optional[str] = Field(None, description="Direction to orbit center: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Use with distance.")
     distance_units: Optional[str] = Field(None, description="Units for distance: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km'.")
     relative_reference_frame: Optional[str] = Field(None, description="Reference point for distance: 'origin' (takeoff), 'last_waypoint'. Make an educated guess if using relative positioning. Typically 'last_waypoint' unless user specifies 'origin'.")

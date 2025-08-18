@@ -27,6 +27,10 @@ class AgentConfig:
     max_mission_items: int = 0
     auto_validate: bool = False
     verbose_default: bool = False
+
+    # Initial takeoff location must be defined to start mission
+    takeoff_initial_latitude: float = 0.0  
+    takeoff_initial_longitude: float = 0.0  
     
     # Mission structure validation
     single_takeoff_only: bool = False
@@ -45,8 +49,6 @@ class AgentConfig:
     takeoff_altitude_units: str = ""
     takeoff_min_altitude: float = 0.0
     takeoff_max_altitude: float = 0.0
-    takeoff_default_latitude: float = 0.0      # Used when no origin available
-    takeoff_default_longitude: float = 0.0     # Used when no origin available
     
     # === WAYPOINT PARAMETERS ===
     waypoint_default_altitude: float = 0.0

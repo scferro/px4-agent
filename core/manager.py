@@ -76,6 +76,7 @@ class MissionManager:
                    altitude_units: Optional[str] = None, 
                    latitude: Optional[float] = None, longitude: Optional[float] = None, 
                    altitude: Optional[float] = None, mgrs: Optional[str] = None,
+                   heading: Optional[str] = None,
                    search_target: Optional[str] = None, detection_behavior: Optional[str] = None) -> MissionItem:
         """Add takeoff command - always goes at the beginning"""
         mission = self._get_current_mission_or_raise()
@@ -89,6 +90,7 @@ class MissionManager:
             latitude=latitude,
             longitude=longitude,
             mgrs=mgrs,
+            heading=heading,
             search_target=search_target,
             detection_behavior=detection_behavior
         )
@@ -260,7 +262,10 @@ class MissionManager:
                     summary += f"\n  <position>lat/lon ({lat_val}, {lon_val})</position>"
                 elif hasattr(item, 'mgrs') and item.mgrs is not None:
                     summary += f"\n  <position>MGRS {item.mgrs}</position>"
-                elif (hasattr(item, 'distance') and item.distance is not None) or (hasattr(item, 'heading') and item.heading is not None) or (hasattr(item, 'distance_units') and item.distance_units is not None) or (hasattr(item, 'relative_reference_frame') and item.relative_reference_frame is not None):
+                elif item.command_type == 'takeoff' and hasattr(item, 'heading') and item.heading is not None:
+                    # For takeoff, only show heading (VTOL transition direction)
+                    summary += f"\n  <heading>{item.heading}</heading>"
+                elif (hasattr(item, 'distance') and item.distance is not None) or (hasattr(item, 'heading') and item.heading is not None and item.command_type != 'takeoff') or (hasattr(item, 'distance_units') and item.distance_units is not None) or (hasattr(item, 'relative_reference_frame') and item.relative_reference_frame is not None):
                     distance = item.distance if item.distance is not None else "(distance)"
                     dist_units = item.distance_units if item.distance_units is not None else "(distance_units)"
                     heading = item.heading if item.heading is not None else "(heading)"

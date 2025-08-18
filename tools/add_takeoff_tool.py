@@ -24,6 +24,9 @@ class TakeoffInput(BaseModel):
     # Target altitude - required parameter
     altitude: Optional[float] = Field(None, description=f"Target takeoff altitude that drone will climb to. Extract from phrases like 'takeoff to 250 feet', 'launch to 100 meters'. This sets the flight altitude for the mission. DO NOT include unless directly specified by the user. Default = {_agent_settings['takeoff_default_altitude']} {_agent_settings['takeoff_altitude_units']}")
     altitude_units: Optional[str] = Field(None, description="Units for takeoff altitude. Extract from user input: 'meters'/'m' or 'feet'/'ft'.")
+    
+    # VTOL transition heading
+    heading: Optional[str] = Field(None, description="Direction VTOL will point during transition to forward flight: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Typically into the wind. Use ONLY when direction is specified.")
 
 
 class AddTakeoffTool(PX4ToolBase):
@@ -36,7 +39,7 @@ class AddTakeoffTool(PX4ToolBase):
     
     def _run(self, latitude: Optional[float] = None, longitude: Optional[float] = None, 
              altitude: Optional[float] = None, altitude_units: Optional[str] = None,
-             mgrs: Optional[str] = None) -> str:
+             mgrs: Optional[str] = None, heading: Optional[str] = None) -> str:
         # Create response
         response = ""
 
@@ -65,7 +68,8 @@ class AddTakeoffTool(PX4ToolBase):
                 latitude=latitude,
                 longitude=longitude,
                 altitude=altitude,
-                mgrs=mgrs
+                mgrs=mgrs,
+                heading=heading
             )
             
             # Validate mission after adding takeoff
@@ -77,7 +81,8 @@ class AddTakeoffTool(PX4ToolBase):
             else:
                 # Build response message with preserved units
                 altitude_msg = f"{altitude} {altitude_units}" if altitude is not None else "default altitude"
-                response = f"Takeoff command added to mission{coord_desc}, Alt={altitude_msg} (Item {item.seq + 1})"
+                heading_msg = f", Heading={heading}" if heading is not None else ""
+                response = f"Takeoff command added to mission{coord_desc}, Alt={altitude_msg}{heading_msg} (Item {item.seq + 1})"
                 
                 # Include auto-fix notifications if any
                 if validation_msg:

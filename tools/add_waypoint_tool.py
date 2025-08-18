@@ -22,7 +22,7 @@ class WaypointInput(BaseModel):
     mgrs: Optional[str] = Field(None, description="MGRS coordinate string. Use ONLY when MGRS coordinate is specified.")
     
     # Relative positioning - use for directional commands like "2 miles north"
-    distance: Optional[float] = Field(None, description="Distance value for relative positioning. Always use with heading parameter.")
+    distance: Optional[float] = Field(None, description="Distance value for relative positioning. Always use with heading parameter. Can set to 0.0 to fly over the reference frame.")
     heading: Optional[str] = Field(None, description="Compass direction: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Always use with distance parameter.")
     distance_units: Optional[str] = Field(None, description="Units for distance: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km', 'nautical_miles'/'nm'.")
     relative_reference_frame: Optional[str] = Field(None, description="Reference point for distance: 'origin' (takeoff), 'last_waypoint'. Make an educated guess if using relative positioning. Typically 'last_waypoint' unless user specifies 'origin'.")

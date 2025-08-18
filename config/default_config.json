@@ -12,6 +12,9 @@
     "max_mission_items": 100,
     "auto_validate": true,
     "verbose_default": false,
+
+    "takeoff_initial_latitude": 41.8832,
+    "takeoff_initial_longitude": -87.6324,
     
     "single_takeoff_only": true,
     "single_rtl_only": true,
@@ -27,8 +30,6 @@
     "takeoff_altitude_units": "feet",
     "takeoff_min_altitude": 100.0,
     "takeoff_max_altitude": 600.0,
-    "takeoff_default_latitude": 0.0,
-    "takeoff_default_longitude": 0.0,
     
     "waypoint_default_altitude": 300.0,
     "waypoint_altitude_units": "feet",

@@ -161,8 +161,8 @@ class MissionValidator:
                 command_type='takeoff',
                 altitude=self.settings.agent.takeoff_default_altitude,
                 altitude_units=self.settings.agent.takeoff_altitude_units,
-                latitude=self.settings.agent.takeoff_default_latitude,
-                longitude=self.settings.agent.takeoff_default_longitude
+                latitude=self.settings.agent.takeoff_initial_latitude,
+                longitude=self.settings.agent.takeoff_initial_longitude
             )
             mission.items.insert(0, takeoff)
             self._resequence_items(mission)
@@ -221,8 +221,8 @@ class MissionValidator:
                 item.radius_units = getattr(self.settings.agent, f"{command_type}_radius_units")
                 fixes.append(f"Set radius units: {item.radius_units}")
             
-            # Complete coordinates for waypoint/loiter/survey if missing
-            if command_type in ['waypoint', 'loiter', 'survey']:
+            # Complete coordinates for takeoff/waypoint/loiter/survey if missing
+            if command_type in ['takeoff', 'waypoint', 'loiter', 'survey']:
                 coord_fixes = self._complete_coordinates(item, command_type, mission, i)
                 fixes.extend(coord_fixes)
             
@@ -325,7 +325,7 @@ class MissionValidator:
         return fixes
 
     def _complete_coordinates(self, item: MissionItem, command_type: str, mission: Mission, index: int) -> List[str]:
-        """Complete missing coordinates for loiter/survey using smart defaults"""
+        """Complete missing coordinates for takeoff/waypoint/loiter/survey using smart defaults"""
         fixes = []
         
         # Check if coordinates are missing
@@ -336,15 +336,21 @@ class MissionValidator:
                        hasattr(item, 'heading') and item.heading is not None)
         
         if not (has_lat_lon or has_mgrs or has_relative):
-            # Use smart location defaulting if configured
-            use_last_waypoint = getattr(self.settings.agent, f"{command_type}_use_last_waypoint_location", False)
-            
-            if use_last_waypoint:
-                last_coords = self._get_last_waypoint_coordinates(mission, index)
-                if last_coords:
-                    item.latitude, item.longitude = last_coords
-                    fixes.append(f"Set {command_type} location from last waypoint: {item.latitude:.6f}, {item.longitude:.6f}")
-                # No fallback - if no last waypoint coords available, leave coordinates empty
+            # Special handling for takeoff - use initial coordinates from settings
+            if command_type == 'takeoff':
+                item.latitude = self.settings.agent.takeoff_initial_latitude
+                item.longitude = self.settings.agent.takeoff_initial_longitude
+                fixes.append(f"Set takeoff location from settings: {item.latitude:.6f}, {item.longitude:.6f}")
+            else:
+                # Use smart location defaulting if configured for other command types
+                use_last_waypoint = getattr(self.settings.agent, f"{command_type}_use_last_waypoint_location", False)
+                
+                if use_last_waypoint:
+                    last_coords = self._get_last_waypoint_coordinates(mission, index)
+                    if last_coords:
+                        item.latitude, item.longitude = last_coords
+                        fixes.append(f"Set {command_type} location from last waypoint: {item.latitude:.6f}, {item.longitude:.6f}")
+                    # No fallback - if no last waypoint coords available, leave coordinates empty
         
         return fixes
 
