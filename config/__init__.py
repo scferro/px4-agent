@@ -7,7 +7,8 @@ from .settings import (
     AgentConfig,
     PX4AgentSettings,
     get_settings,
-    reload_settings
+    get_model_settings,
+    get_agent_settings
 )
 
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     'AgentConfig',
     'PX4AgentSettings',
     'get_settings',
-    'reload_settings'
+    'get_model_settings',
+    'get_agent_settings'
 ]

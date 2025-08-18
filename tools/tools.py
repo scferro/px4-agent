@@ -8,6 +8,7 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
 from core import MissionManager
+from config.settings import get_agent_settings
 
 
 # Model Parameter Schemas - Maps command types to ALL parameters the model can return
@@ -51,6 +52,8 @@ class PX4ToolBase(BaseTool):
     def __init__(self, mission_manager: MissionManager):
         super().__init__()
         self._mission_manager = mission_manager
+        # Load agent settings
+        self._agent_settings = get_agent_settings()
     
     @property
     def mission_manager(self):

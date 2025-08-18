@@ -11,7 +11,8 @@ Rules:
 - Edit missions using: update_mission_item (modify), delete_mission_item (remove), move_mission_item (reorder)
 - Don't mix location systems: use Lat/Long OR MGRS OR distance/heading/reference
 - ONLY use explicitly stated parameters, DO NOT GUESS MISSING VALUES. Defaults will be filled in automatically
-- Don't summarize mission state - user sees it separately"""
+- Don't summarize mission state - user sees it separately
+- </no_think>"""
 
 
 COMMAND_SYSTEM_PROMPT = """You are a PX4 VTOL drone command assistant. Convert user requests into single mission items.
@@ -21,7 +22,8 @@ Rules:
 - Mission state provided in XML format - verify your command worked
 - Don't mix location systems: use Lat/Long OR MGRS OR distance/heading/reference  
 - ONLY use explicitly stated parameters, DO NOT GUESS MISSING VALUES. Defaults will be filled in automatically
-- Don't summarize mission state - user sees it separately"""
+- Don't summarize mission state - user sees it separately
+- </no_think>"""
 
 
 

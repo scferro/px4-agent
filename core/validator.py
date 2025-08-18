@@ -221,8 +221,8 @@ class MissionValidator:
                 item.radius_units = getattr(self.settings.agent, f"{command_type}_radius_units")
                 fixes.append(f"Set radius units: {item.radius_units}")
             
-            # Complete coordinates for loiter/survey if missing
-            if command_type in ['loiter', 'survey']:
+            # Complete coordinates for waypoint/loiter/survey if missing
+            if command_type in ['waypoint', 'loiter', 'survey']:
                 coord_fixes = self._complete_coordinates(item, command_type, mission, i)
                 fixes.extend(coord_fixes)
             
@@ -232,7 +232,7 @@ class MissionValidator:
                 fixes.append(f"Set distance units: {item.distance_units}")
             
             # Complete search parameters if not specified
-            if hasattr(item, 'search_target') and item.search_target is None:
+            if hasattr(item, 'search_target') and item.search_target is None and item.detection_behavior:
                 item.search_target = self.settings.agent.default_search_target
             
             if hasattr(item, 'detection_behavior') and item.detection_behavior is None and item.search_target:
@@ -248,10 +248,6 @@ class MissionValidator:
         # Get configured min/max for this command type
         min_alt = getattr(self.settings.agent, f"{command_type}_min_altitude")
         max_alt = getattr(self.settings.agent, f"{command_type}_max_altitude")
-        
-        # Apply global constraints
-        min_alt = max(min_alt, self.settings.agent.global_min_altitude)
-        max_alt = min(max_alt, self.settings.agent.global_max_altitude)
         
         if item.altitude is None:
             # Smart defaulting based on command type and configuration
@@ -314,10 +310,6 @@ class MissionValidator:
         min_radius = getattr(self.settings.agent, f"{command_type}_min_radius")
         max_radius = getattr(self.settings.agent, f"{command_type}_max_radius")
         
-        # Apply global constraints
-        min_radius = max(min_radius, self.settings.agent.global_min_radius)
-        max_radius = min(max_radius, self.settings.agent.global_max_radius)
-        
         if item.radius is None:
             item.radius = getattr(self.settings.agent, f"{command_type}_default_radius")
             fixes.append(f"Set default {command_type} radius: {item.radius} meters")
@@ -352,16 +344,7 @@ class MissionValidator:
                 if last_coords:
                     item.latitude, item.longitude = last_coords
                     fixes.append(f"Set {command_type} location from last waypoint: {item.latitude:.6f}, {item.longitude:.6f}")
-                else:
-                    # Fallback to defaults
-                    item.latitude = getattr(self.settings.agent, f"{command_type}_default_latitude")
-                    item.longitude = getattr(self.settings.agent, f"{command_type}_default_longitude")
-                    fixes.append(f"Set default {command_type} location: {item.latitude}, {item.longitude}")
-            else:
-                # Use configured defaults
-                item.latitude = getattr(self.settings.agent, f"{command_type}_default_latitude")
-                item.longitude = getattr(self.settings.agent, f"{command_type}_default_longitude")
-                fixes.append(f"Set default {command_type} location: {item.latitude}, {item.longitude}")
+                # No fallback - if no last waypoint coords available, leave coordinates empty
         
         return fixes
 

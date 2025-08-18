@@ -9,21 +9,21 @@ import requests
 from langchain_ollama import ChatOllama
 from langchain_core.language_models import BaseChatModel
 
-from config import get_settings
+from config import get_model_settings
 
 class OllamaInterface:
     """Interface for Ollama model communication"""
     
     def __init__(self, model_name: Optional[str] = None, base_url: Optional[str] = None):
-        settings = get_settings()
+        model_settings = get_model_settings()
         
-        self.model_name = model_name or settings.model.name
-        self.base_url = base_url or settings.model.base_url
-        self.temperature = settings.model.temperature
-        self.top_p = settings.model.top_p
-        self.top_k = settings.model.top_k
-        self.timeout = settings.model.timeout
-        self.max_tokens = settings.model.max_tokens
+        self.model_name = model_name or model_settings['name']
+        self.base_url = base_url or model_settings['base_url']
+        self.temperature = model_settings['temperature']
+        self.top_p = model_settings['top_p']
+        self.top_k = model_settings['top_k']
+        self.timeout = model_settings['timeout']
+        self.max_tokens = model_settings['max_tokens']
         
         self._llm = None
         self._initialize_model()

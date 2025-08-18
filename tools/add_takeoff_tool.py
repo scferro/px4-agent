@@ -7,6 +7,10 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
 from .tools import PX4ToolBase
+from config.settings import get_agent_settings
+
+# Load agent settings for Field descriptions
+_agent_settings = get_agent_settings()
 
 
 class TakeoffInput(BaseModel):
@@ -18,7 +22,7 @@ class TakeoffInput(BaseModel):
     mgrs: Optional[str] = Field(None, description="MGRS coordinate string. Use when user provides MGRS grid coordinates for takeoff location.")
     
     # Target altitude - required parameter
-    altitude: Optional[float] = Field(None, description="Target takeoff altitude that drone will climb to. Extract from phrases like 'takeoff to 250 feet', 'launch to 100 meters'. This sets the flight altitude for the mission. DO NOT include unless directly specified by the user.")
+    altitude: Optional[float] = Field(None, description=f"Target takeoff altitude that drone will climb to. Extract from phrases like 'takeoff to 250 feet', 'launch to 100 meters'. This sets the flight altitude for the mission. DO NOT include unless directly specified by the user. Default = {_agent_settings['takeoff_default_altitude']} {_agent_settings['takeoff_altitude_units']}")
     altitude_units: Optional[str] = Field(None, description="Units for takeoff altitude. Extract from user input: 'meters'/'m' or 'feet'/'ft'.")
 
 

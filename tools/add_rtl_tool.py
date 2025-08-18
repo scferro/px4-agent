@@ -7,13 +7,17 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
 from .tools import PX4ToolBase
+from config.settings import get_agent_settings
+
+# Load agent settings for Field descriptions
+_agent_settings = get_agent_settings()
 
 
 class RTLInput(BaseModel):
     """Return to launch - automatically fly back to takeoff point and land"""
     
     # Optional altitude specification
-    altitude: Optional[float] = Field(None, description="Landing altitude for RTL. Specify only if user mentions specific landing height.")
+    altitude: Optional[float] = Field(None, description=f"Landing altitude for RTL. Specify only if user mentions specific landing height. Default = {_agent_settings['rtl_default_altitude']} {_agent_settings['rtl_altitude_units']}")
     altitude_units: Optional[str] = Field(None, description="Units for landing altitude: 'meters'/'m' or 'feet'/'ft'.")
 
 
