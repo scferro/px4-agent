@@ -6,6 +6,7 @@ Handles mission validation logic and safety checks
 from typing import List, Tuple, Optional
 from config.settings import PX4AgentSettings
 from core.mission import Mission, MissionItem
+from core.units import convert_units
 
 
 class MissionValidator:
@@ -201,25 +202,25 @@ class MissionValidator:
             if not command_type:
                 continue
             
-            # Complete altitude for all navigation commands
-            if hasattr(item, 'altitude'):
-                altitude_fixes = self._complete_altitude(item, command_type, mission, i)
-                fixes.extend(altitude_fixes)
-            
-            # Complete altitude_units
+            # Complete altitude_units FIRST (needed for unit conversion)
             if hasattr(item, 'altitude_units') and item.altitude_units is None:
                 item.altitude_units = getattr(self.settings.agent, f"{command_type}_altitude_units")
                 fixes.append(f"Set altitude units: {item.altitude_units}")
             
-            # Complete radius for loiter/survey
-            if command_type in ['loiter', 'survey'] and hasattr(item, 'radius'):
-                radius_fixes = self._complete_radius(item, command_type)
-                fixes.extend(radius_fixes)
+            # Complete altitude for all navigation commands (after units are set)
+            if hasattr(item, 'altitude'):
+                altitude_fixes = self._complete_altitude(item, command_type, mission, i)
+                fixes.extend(altitude_fixes)
             
-            # Complete radius_units for loiter/survey
+            # Complete radius_units FIRST for loiter/survey (needed for unit conversion)
             if command_type in ['loiter', 'survey'] and hasattr(item, 'radius_units') and item.radius_units is None:
                 item.radius_units = getattr(self.settings.agent, f"{command_type}_radius_units")
                 fixes.append(f"Set radius units: {item.radius_units}")
+            
+            # Complete radius for loiter/survey (after units are set)
+            if command_type in ['loiter', 'survey'] and hasattr(item, 'radius'):
+                radius_fixes = self._complete_radius(item, command_type)
+                fixes.extend(radius_fixes)
             
             # Complete coordinates for takeoff/waypoint/loiter/survey if missing
             if command_type in ['takeoff', 'waypoint', 'loiter', 'survey']:
@@ -245,9 +246,14 @@ class MissionValidator:
         """Complete altitude with smart defaulting per command type"""
         fixes = []
         
-        # Get configured min/max for this command type
+        # Get configured min/max for this command type and their units
         min_alt = getattr(self.settings.agent, f"{command_type}_min_altitude")
         max_alt = getattr(self.settings.agent, f"{command_type}_max_altitude")
+        config_units = getattr(self.settings.agent, f"{command_type}_altitude_units")
+        
+        # Convert config min/max from their units to meters for comparison
+        min_alt_meters = convert_units(min_alt, config_units, 'meters')
+        max_alt_meters = convert_units(max_alt, config_units, 'meters')
         
         if item.altitude is None:
             # Smart defaulting based on command type and configuration
@@ -255,50 +261,54 @@ class MissionValidator:
                 prev_alt = self._get_previous_altitude(mission, index)
                 if prev_alt:
                     item.altitude = prev_alt
-                    fixes.append(f"Set altitude from previous item: {item.altitude} meters")
+                    fixes.append(f"Set altitude from previous item: {item.altitude} {item.altitude_units or 'units'}")
                 else:
                     item.altitude = self.settings.agent.waypoint_default_altitude
-                    fixes.append(f"Set default altitude: {item.altitude} meters")
+                    fixes.append(f"Set default altitude: {item.altitude} {item.altitude_units or 'units'}")
             
             elif command_type == "loiter" and self.settings.agent.loiter_use_previous_altitude:
                 prev_alt = self._get_previous_altitude(mission, index)
                 if prev_alt:
                     item.altitude = prev_alt
-                    fixes.append(f"Set loiter altitude from previous item: {item.altitude} meters")
+                    fixes.append(f"Set loiter altitude from previous item: {item.altitude} {item.altitude_units or 'units'}")
                 else:
                     item.altitude = self.settings.agent.loiter_default_altitude
-                    fixes.append(f"Set default loiter altitude: {item.altitude} meters")
+                    fixes.append(f"Set default loiter altitude: {item.altitude} {item.altitude_units or 'units'}")
             
             elif command_type == "survey" and self.settings.agent.survey_use_previous_altitude:
                 prev_alt = self._get_previous_altitude(mission, index)
                 if prev_alt:
                     item.altitude = prev_alt
-                    fixes.append(f"Set survey altitude from previous item: {item.altitude} meters")
+                    fixes.append(f"Set survey altitude from previous item: {item.altitude} {item.altitude_units or 'units'}")
                 else:
                     item.altitude = self.settings.agent.survey_default_altitude
-                    fixes.append(f"Set default survey altitude: {item.altitude} meters")
+                    fixes.append(f"Set default survey altitude: {item.altitude} {item.altitude_units or 'units'}")
             
             elif command_type == "rtl" and self.settings.agent.rtl_use_takeoff_altitude:
                 takeoff_alt = self._get_takeoff_altitude(mission)
                 if takeoff_alt:
                     item.altitude = takeoff_alt
-                    fixes.append(f"Set RTL altitude from takeoff: {item.altitude} meters")
+                    fixes.append(f"Set RTL altitude from takeoff: {item.altitude} {item.altitude_units or 'units'}")
                 else:
                     item.altitude = self.settings.agent.rtl_default_altitude
-                    fixes.append(f"Set default RTL altitude: {item.altitude} meters")
+                    fixes.append(f"Set default RTL altitude: {item.altitude} {item.altitude_units or 'units'}")
             
             else:
                 # Use command-specific default
                 item.altitude = getattr(self.settings.agent, f"{command_type}_default_altitude")
-                fixes.append(f"Set default {command_type} altitude: {item.altitude} meters")
+                fixes.append(f"Set default {command_type} altitude: {item.altitude} {item.altitude_units or 'units'}")
         
-        # Clamp to min/max constraints
-        if item.altitude < min_alt:
-            item.altitude = min_alt
-            fixes.append(f"Clamped {command_type} altitude to minimum: {item.altitude} meters")
-        elif item.altitude > max_alt:
-            item.altitude = max_alt
-            fixes.append(f"Clamped {command_type} altitude to maximum: {item.altitude} meters")
+        # Clamp to min/max constraints (convert item altitude to meters for comparison)
+        item_altitude_meters = convert_units(item.altitude, item.altitude_units, 'meters')
+        
+        if item_altitude_meters < min_alt_meters:
+            # Convert minimum back to item's units and update
+            item.altitude = convert_units(min_alt_meters, 'meters', item.altitude_units)
+            fixes.append(f"Clamped {command_type} altitude to minimum: {item.altitude} {item.altitude_units or 'units'}")
+        elif item_altitude_meters > max_alt_meters:
+            # Convert maximum back to item's units and update
+            item.altitude = convert_units(max_alt_meters, 'meters', item.altitude_units)
+            fixes.append(f"Clamped {command_type} altitude to maximum: {item.altitude} {item.altitude_units or 'units'}")
         
         return fixes
 
@@ -306,21 +316,30 @@ class MissionValidator:
         """Complete radius with defaults and clamping"""
         fixes = []
         
-        # Get configured min/max for this command type
+        # Get configured min/max for this command type and their units
         min_radius = getattr(self.settings.agent, f"{command_type}_min_radius")
         max_radius = getattr(self.settings.agent, f"{command_type}_max_radius")
+        config_units = getattr(self.settings.agent, f"{command_type}_radius_units")
+        
+        # Convert config min/max from their units to meters for comparison
+        min_radius_meters = convert_units(min_radius, config_units, 'meters')
+        max_radius_meters = convert_units(max_radius, config_units, 'meters')
         
         if item.radius is None:
             item.radius = getattr(self.settings.agent, f"{command_type}_default_radius")
-            fixes.append(f"Set default {command_type} radius: {item.radius} meters")
+            fixes.append(f"Set default {command_type} radius: {item.radius} {config_units or 'units'}")
         
-        # Clamp to min/max
-        if item.radius < min_radius:
-            item.radius = min_radius
-            fixes.append(f"Clamped {command_type} radius to minimum: {item.radius} meters")
-        elif item.radius > max_radius:
-            item.radius = max_radius
-            fixes.append(f"Clamped {command_type} radius to maximum: {item.radius} meters")
+        # Clamp to min/max constraints (convert item radius to meters for comparison)
+        item_radius_meters = convert_units(item.radius, item.radius_units, 'meters')
+        
+        if item_radius_meters < min_radius_meters:
+            # Convert minimum back to item's units and update
+            item.radius = convert_units(min_radius_meters, 'meters', item.radius_units)
+            fixes.append(f"Clamped {command_type} radius to minimum: {item.radius} {item.radius_units or 'units'}")
+        elif item_radius_meters > max_radius_meters:
+            # Convert maximum back to item's units and update
+            item.radius = convert_units(max_radius_meters, 'meters', item.radius_units)
+            fixes.append(f"Clamped {command_type} radius to maximum: {item.radius} {item.radius_units or 'units'}")
         
         return fixes
 

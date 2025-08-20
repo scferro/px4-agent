@@ -154,8 +154,26 @@ class PX4ToolBase(BaseTool):
         else:
             return "coordinates not specified"
 
-def get_px4_tools(mission_manager: MissionManager) -> list:
-    """Get all PX4 mission planning tools"""
+def get_command_tools(mission_manager: MissionManager) -> list:
+    """Get PX4 tools for command mode - add tools + update only"""
+    from .add_waypoint_tool import AddWaypointTool
+    from .add_takeoff_tool import AddTakeoffTool
+    from .add_rtl_tool import AddRTLTool
+    from .add_loiter_tool import AddLoiterTool
+    from .add_survey_tool import AddSurveyTool
+    from .update_mission_item_tool import UpdateMissionItemTool
+    
+    return [
+        AddWaypointTool(mission_manager),
+        AddTakeoffTool(mission_manager),
+        AddSurveyTool(mission_manager),
+        AddRTLTool(mission_manager),
+        AddLoiterTool(mission_manager),
+        UpdateMissionItemTool(mission_manager),
+    ]
+
+def get_mission_tools(mission_manager: MissionManager) -> list:
+    """Get all PX4 mission planning tools for mission mode"""
     from .add_waypoint_tool import AddWaypointTool
     from .add_takeoff_tool import AddTakeoffTool
     from .add_rtl_tool import AddRTLTool
@@ -175,3 +193,14 @@ def get_px4_tools(mission_manager: MissionManager) -> list:
         DeleteMissionItemTool(mission_manager),
         MoveMissionItemTool(mission_manager),
     ]
+
+def get_tools_for_mode(mission_manager: MissionManager, mode: str) -> list:
+    """Get appropriate tools for the specified mode"""
+    if mode == "command":
+        return get_command_tools(mission_manager)
+    else:
+        return get_mission_tools(mission_manager)
+
+def get_px4_tools(mission_manager: MissionManager) -> list:
+    """Get all PX4 mission planning tools (legacy function - defaults to mission mode)"""
+    return get_mission_tools(mission_manager)

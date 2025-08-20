@@ -11,7 +11,7 @@ from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import InMemorySaver
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
-from tools import get_px4_tools
+from tools import get_tools_for_mode
 from models import OllamaInterface
 from prompts import get_system_prompt
 from config import get_settings
@@ -25,7 +25,7 @@ class PX4Agent:
         self.verbose = verbose or self.settings.agent.verbose_default
         
         # Initialize components
-        self.ollama_interface = OllamaInterface()
+        self.ollama_interface = None  # Will be set when mode is selected
         self.tools = []  # Will be set when mode is selected
         self.mission_manager = None  # Will be set when mode is selected
         
@@ -43,8 +43,11 @@ class PX4Agent:
         # Create mission manager first
         self.mission_manager = MissionManager(mode=mode)
         
-        # Create tools with mission manager
-        self.tools = get_px4_tools(self.mission_manager)
+        # Create mode-specific ollama interface
+        self.ollama_interface = OllamaInterface(mode=mode)
+        
+        # Create tools with mission manager (mode-specific)
+        self.tools = get_tools_for_mode(self.mission_manager, mode)
         
         # Debug: print tool info
         if self.verbose:

@@ -1,0 +1,179 @@
+"""
+Universal Unit Conversion System for PX4 Agent
+Supports conversion between meters, feet, kilometers, miles with easy extensibility
+
+Main function: convert_units(value, from_unit, to_unit)
+  - Universal converter: supports any unit to any unit
+  - Examples: convert_units(100, 'ft', 'm'), convert_units(1, 'km', 'miles')
+"""
+
+from typing import Optional, Dict
+
+
+# Conversion factors to meters (base unit)
+UNIT_CONVERSIONS: Dict[str, float] = {
+    'meters': 1.0,              # Base unit
+    'feet': 0.3048,             # 1 foot = 0.3048 meters
+    'kilometers': 1000.0,       # 1 kilometer = 1000 meters
+    'miles': 1609.344           # 1 mile = 1609.344 meters
+}
+
+# Unit aliases for normalization
+UNIT_ALIASES: Dict[str, str] = {
+    # Meters
+    'meter': 'meters',
+    'm': 'meters',
+    
+    # Feet  
+    'foot': 'feet',
+    'ft': 'feet',
+    "'": 'feet',
+    
+    # Kilometers
+    'kilometer': 'kilometers', 
+    'km': 'kilometers',
+    'kms': 'kilometers',
+    
+    # Miles
+    'mile': 'miles',
+    'mi': 'miles',
+    'mil': 'miles'
+}
+
+
+def normalize_unit(unit: Optional[str]) -> str:
+    """
+    Normalize unit string to standard format
+    
+    Args:
+        unit: Unit string to normalize (e.g., 'ft', 'feet', 'm', 'meters')
+        
+    Returns:
+        Normalized unit string (e.g., 'feet', 'meters')
+        Defaults to 'meters' for None or unknown units
+    """
+    if not unit:
+        return 'meters'
+    
+    unit_lower = unit.lower().strip()
+    
+    # Check if it's already a standard unit
+    if unit_lower in UNIT_CONVERSIONS:
+        return unit_lower
+    
+    # Check aliases
+    if unit_lower in UNIT_ALIASES:
+        return UNIT_ALIASES[unit_lower]
+    
+    # Default to meters for unknown units
+    return 'meters'
+
+
+def get_conversion_factor(from_unit: Optional[str], to_unit: Optional[str]) -> float:
+    """
+    Get conversion factor from one unit to another
+    
+    Args:
+        from_unit: Source unit
+        to_unit: Target unit
+        
+    Returns:
+        Conversion factor to multiply source value by
+    """
+    from_normalized = normalize_unit(from_unit)
+    to_normalized = normalize_unit(to_unit)
+    
+    if from_normalized == to_normalized:
+        return 1.0
+    
+    # Convert from source unit to meters, then to target unit
+    from_to_meters = UNIT_CONVERSIONS[from_normalized]
+    to_from_meters = UNIT_CONVERSIONS[to_normalized]
+    
+    return from_to_meters / to_from_meters
+
+
+def convert_units(value: float, from_unit: Optional[str], to_unit: Optional[str]) -> float:
+    """
+    Convert a value from one unit to another
+    
+    Args:
+        value: Numeric value to convert
+        from_unit: Source unit (e.g., 'feet', 'ft', 'm')
+        to_unit: Target unit (e.g., 'meters', 'km', 'miles')
+        
+    Returns:
+        Converted value in target units
+        Returns original value if conversion fails
+        
+    Examples:
+        convert_units(100, 'feet', 'meters') -> 30.48
+        convert_units(1, 'km', 'miles') -> 0.621371
+        convert_units(5280, 'ft', 'miles') -> 1.0
+    """
+    if value is None:
+        return None
+    
+    try:
+        conversion_factor = get_conversion_factor(from_unit, to_unit)
+        result = value * conversion_factor
+        # Round to avoid floating point precision errors
+        return round(result, 6)  # 6 decimal places should be sufficient
+    except (KeyError, ValueError):
+        # Return original value if conversion fails
+        return value
+
+
+# Convenience wrapper functions for common conversions
+# These use the universal convert_units() method internally
+
+def convert_to_meters(value: float, from_unit: Optional[str]) -> float:
+    """
+    Convenience wrapper: Convert any unit to meters
+    Uses the universal convert_units() method internally
+    """
+    return convert_units(value, from_unit, 'meters')
+
+
+def convert_from_meters(value: float, to_unit: Optional[str]) -> float:
+    """
+    Convenience wrapper: Convert meters to any unit
+    Uses the universal convert_units() method internally
+    """
+    return convert_units(value, 'meters', to_unit)
+
+
+def is_valid_unit(unit: Optional[str]) -> bool:
+    """
+    Check if a unit is supported by the conversion system
+    
+    Args:
+        unit: Unit string to check
+        
+    Returns:
+        True if unit is supported, False otherwise
+    """
+    if not unit:
+        return True  # None/empty defaults to meters
+    
+    normalized = normalize_unit(unit)
+    return normalized in UNIT_CONVERSIONS
+
+
+def get_supported_units() -> list:
+    """
+    Get list of all supported unit names and aliases
+    
+    Returns:
+        List of supported unit strings
+    """
+    units = list(UNIT_CONVERSIONS.keys())
+    aliases = list(UNIT_ALIASES.keys())
+    return sorted(units + aliases)
+
+
+# Easy extensibility: To add new units, just add to UNIT_CONVERSIONS
+# Example for adding nautical miles:
+# UNIT_CONVERSIONS['nautical_miles'] = 1852.0  # 1 nautical mile = 1852 meters
+# UNIT_ALIASES['nm'] = 'nautical_miles'
+# UNIT_ALIASES['nmi'] = 'nautical_miles'
