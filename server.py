@@ -7,7 +7,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
 from typing import Dict, Any, Optional
 import traceback
@@ -73,6 +73,16 @@ class PX4AgentServer:
     
     def _setup_routes(self):
         """Setup Flask routes"""
+        
+        @self.app.route('/', methods=['GET'])
+        def index():
+            """Serve the main web chat interface"""
+            return send_file('static/index.html')
+        
+        @self.app.route('/static/<path:filename>', methods=['GET'])
+        def static_files(filename):
+            """Serve static files (CSS, JS, etc.)"""
+            return send_from_directory('static', filename)
         
         @self.app.route('/api/status', methods=['GET'])
         def status():

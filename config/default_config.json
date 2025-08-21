@@ -1,6 +1,6 @@
 {
   "model_command": {
-    "name": "qwen3:0.6b",
+    "name": "qwen3:4b-instruct",
     "base_url": "http://localhost:11434",
     "temperature": 0.3,
     "top_p": 0.6,
