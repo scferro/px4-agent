@@ -287,6 +287,11 @@ class PX4AgentClient {
                 details.push(`Radius: ${item.radius} ${item.radius_units || 'units'}`);
             }
             
+            // Add heading for takeoff commands
+            if (commandType === 'takeoff' && item.heading) {
+                details.push(`Heading: ${item.heading}`);
+            }
+            
             // Add search parameters
             if (item.search_target) {
                 details.push(`Target: ${item.search_target}`);

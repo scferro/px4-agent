@@ -262,15 +262,16 @@ class MissionManager:
                     summary += f"\n  <position>lat/lon ({lat_val}, {lon_val})</position>"
                 elif hasattr(item, 'mgrs') and item.mgrs is not None:
                     summary += f"\n  <position>MGRS {item.mgrs}</position>"
-                elif item.command_type == 'takeoff' and hasattr(item, 'heading') and item.heading is not None:
-                    # For takeoff, only show heading (VTOL transition direction)
-                    summary += f"\n  <heading>{item.heading}</heading>"
                 elif (hasattr(item, 'distance') and item.distance is not None) or (hasattr(item, 'heading') and item.heading is not None and item.command_type != 'takeoff') or (hasattr(item, 'distance_units') and item.distance_units is not None) or (hasattr(item, 'relative_reference_frame') and item.relative_reference_frame is not None):
                     distance = item.distance if item.distance is not None else "(distance)"
                     dist_units = item.distance_units if item.distance_units is not None else "(distance_units)"
                     heading = item.heading if item.heading is not None else "(heading)"
                     ref_frame = item.relative_reference_frame if item.relative_reference_frame is not None else "(relative_reference_frame)"
                     summary += f"\n  <position>{distance} {dist_units} {heading} from {ref_frame}</position>"
+                
+                # Always show heading for takeoff commands (VTOL transition direction)
+                if item.command_type == 'takeoff' and hasattr(item, 'heading') and item.heading is not None:
+                    summary += f"\n  <heading>{item.heading}</heading>"
                 
                 # Show search parameters if any are specified (for all command types)
                 if ((hasattr(item, 'search_target') and item.search_target is not None) or (hasattr(item, 'detection_behavior') and item.detection_behavior is not None)):

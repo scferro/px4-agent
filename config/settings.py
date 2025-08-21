@@ -49,6 +49,7 @@ class AgentConfig:
     takeoff_altitude_units: str = ""
     takeoff_min_altitude: float = 0.0
     takeoff_max_altitude: float = 0.0
+    takeoff_default_heading: str = ""
     
     # === WAYPOINT PARAMETERS ===
     waypoint_default_altitude: float = 0.0

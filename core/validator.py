@@ -40,6 +40,11 @@ class MissionValidator:
             if mission_item_count > 1:
                 errors.append(f"Mission has {mission_item_count} commands - only one is allowed")
         
+        # Complete missing parameters (applies to both mission and command modes)
+        if self.settings.agent.auto_complete_parameters:
+            param_fixes = self._complete_missing_parameters(mission)
+            fixes_applied.extend(param_fixes)
+        
         # Validate individual items (applies to both modes)
         for i, item in enumerate(mission.items):
             item_errors = self.validate_mission_item(item, i)
@@ -98,10 +103,7 @@ class MissionValidator:
             rtl_fixes = self._ensure_rtl_exists(mission)
             fixes.extend(rtl_fixes)
         
-        # NEW: Complete missing parameters
-        if self.settings.agent.auto_complete_parameters:
-            param_fixes = self._complete_missing_parameters(mission)
-            fixes.extend(param_fixes)
+        # Parameter completion is now handled at the main validation level
         
         # Check for multiple takeoffs/RTLs (after auto-addition)
         takeoff_count = sum(1 for item in mission.items if getattr(item, 'command_type', None) == 'takeoff')
@@ -163,7 +165,8 @@ class MissionValidator:
                 altitude=self.settings.agent.takeoff_default_altitude,
                 altitude_units=self.settings.agent.takeoff_altitude_units,
                 latitude=self.settings.agent.takeoff_initial_latitude,
-                longitude=self.settings.agent.takeoff_initial_longitude
+                longitude=self.settings.agent.takeoff_initial_longitude,
+                heading=self.settings.agent.takeoff_default_heading
             )
             mission.items.insert(0, takeoff)
             self._resequence_items(mission)
@@ -226,6 +229,12 @@ class MissionValidator:
             if command_type in ['takeoff', 'waypoint', 'loiter', 'survey']:
                 coord_fixes = self._complete_coordinates(item, command_type, mission, i)
                 fixes.extend(coord_fixes)
+            
+            # Complete heading for takeoff commands (always required, cannot be unset)
+            if command_type == 'takeoff':
+                if not hasattr(item, 'heading') or item.heading is None:
+                    item.heading = self.settings.agent.takeoff_default_heading
+                    fixes.append(f"Set takeoff heading: {item.heading}")
             
             # Complete distance_units for relative positioning
             if hasattr(item, 'distance_units') and item.distance_units is None and hasattr(item, 'distance') and item.distance is not None:
