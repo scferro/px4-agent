@@ -185,3 +185,8 @@ def get_agent_settings() -> Dict[str, Any]:
     """Get agent settings as dictionary"""
     settings = get_settings()
     return settings.agent.__dict__
+
+def reload_settings(config_path: Optional[str] = None):
+    """Reload settings from file"""
+    global _settings
+    _settings = PX4AgentSettings.load(config_path)
