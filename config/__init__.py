@@ -9,7 +9,9 @@ from .settings import (
     get_settings,
     get_model_settings,
     get_agent_settings,
-    reload_settings
+    reload_settings,
+    update_takeoff_settings,
+    get_current_takeoff_settings
 )
 
 __all__ = [
@@ -19,5 +21,7 @@ __all__ = [
     'get_settings',
     'get_model_settings',
     'get_agent_settings',
-    'reload_settings'
+    'reload_settings',
+    'update_takeoff_settings',
+    'get_current_takeoff_settings'
 ]

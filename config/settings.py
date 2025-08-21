@@ -191,3 +191,31 @@ def reload_settings(config_path: Optional[str] = None):
     """Reload settings from file"""
     global _settings
     _settings = PX4AgentSettings.load(config_path)
+
+def update_takeoff_settings(latitude: float, longitude: float, heading: str):
+    """Update takeoff settings at runtime"""
+    global _settings
+    if _settings is None:
+        _settings = PX4AgentSettings.load()
+    
+    # Validate inputs
+    if not (-90 <= latitude <= 90):
+        raise ValueError(f"Latitude must be between -90 and 90, got {latitude}")
+    if not (-180 <= longitude <= 180):
+        raise ValueError(f"Longitude must be between -180 and 180, got {longitude}")
+    if not heading or not isinstance(heading, str):
+        raise ValueError("Heading must be a non-empty string")
+    
+    # Update runtime settings
+    _settings.agent.takeoff_initial_latitude = latitude
+    _settings.agent.takeoff_initial_longitude = longitude
+    _settings.agent.takeoff_default_heading = heading
+
+def get_current_takeoff_settings() -> Dict[str, Any]:
+    """Get current takeoff settings"""
+    settings = get_settings()
+    return {
+        "latitude": settings.agent.takeoff_initial_latitude,
+        "longitude": settings.agent.takeoff_initial_longitude,
+        "heading": settings.agent.takeoff_default_heading
+    }

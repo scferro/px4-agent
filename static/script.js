@@ -36,6 +36,17 @@ class PX4AgentClient {
             // Mission state elements
             missionItems: document.getElementById('missionItems'),
             
+            // Settings elements
+            settingsHeader: document.getElementById('settingsHeader'),
+            settingsToggle: document.getElementById('settingsToggle'),
+            settingsContent: document.getElementById('settingsContent'),
+            collapsedInfo: document.getElementById('collapsedInfo'),
+            currentSettings: document.getElementById('currentSettings'),
+            latitudeInput: document.getElementById('latitudeInput'),
+            longitudeInput: document.getElementById('longitudeInput'),
+            headingInput: document.getElementById('headingInput'),
+            setTakeoffBtn: document.getElementById('setTakeoffBtn'),
+            
             // Loading elements
             loadingOverlay: document.getElementById('loadingOverlay')
         };
@@ -54,8 +65,18 @@ class PX4AgentClient {
         
         this.elements.sendButton.addEventListener('click', () => this.sendMessage());
         
+        // Settings panel handling
+        this.elements.settingsHeader.addEventListener('click', () => this.toggleSettings());
+        this.elements.setTakeoffBtn.addEventListener('click', () => this.updateTakeoffSettings());
+        
+        // Settings input validation
+        [this.elements.latitudeInput, this.elements.longitudeInput, this.elements.headingInput].forEach(input => {
+            input.addEventListener('input', () => this.validateSettingsForm());
+        });
+        
         // Initial state
         this.updateSendButton();
+        this.loadCurrentSettings();
     }
     
     async checkServerConnection() {
@@ -331,6 +352,135 @@ class PX4AgentClient {
             this.elements.loadingOverlay.classList.add('active');
         } else {
             this.elements.loadingOverlay.classList.remove('active');
+        }
+    }
+    
+    toggleSettings() {
+        const content = this.elements.settingsContent;
+        const toggle = this.elements.settingsToggle;
+        
+        if (content.classList.contains('collapsed')) {
+            content.classList.remove('collapsed');
+            toggle.classList.remove('collapsed');
+            toggle.textContent = '▼';
+        } else {
+            content.classList.add('collapsed');
+            toggle.classList.add('collapsed');
+            toggle.textContent = '▶';
+        }
+    }
+    
+    async loadCurrentSettings() {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/settings/takeoff`);
+            const result = await response.json();
+            
+            if (result.success) {
+                const settings = result.settings;
+                const displayText = `${settings.latitude.toFixed(6)}, ${settings.longitude.toFixed(6)}, ${settings.heading}`;
+                
+                // Update expanded current settings display
+                this.elements.currentSettings.innerHTML = `
+                    <div class="current-value">
+                        Current: ${displayText}
+                    </div>
+                `;
+                
+                // Update collapsed info display
+                this.elements.collapsedInfo.textContent = displayText;
+            } else {
+                this.elements.currentSettings.innerHTML = `
+                    <div class="current-value">Failed to load current settings</div>
+                `;
+                this.elements.collapsedInfo.textContent = 'Failed to load';
+            }
+        } catch (error) {
+            console.error('Failed to load settings:', error);
+            this.elements.currentSettings.innerHTML = `
+                <div class="current-value">Error loading settings</div>
+            `;
+            this.elements.collapsedInfo.textContent = 'Error loading';
+        }
+    }
+    
+    validateSettingsForm() {
+        const lat = this.elements.latitudeInput.value.trim();
+        const lon = this.elements.longitudeInput.value.trim();
+        const heading = this.elements.headingInput.value.trim();
+        
+        // Check if individual fields are valid when filled
+        const latValid = !lat || (!isNaN(lat) && lat >= -90 && lat <= 90);
+        const lonValid = !lon || (!isNaN(lon) && lon >= -180 && lon <= 180);
+        const headingValid = true; // Dropdown always valid
+        
+        // Check if at least one field has content
+        const hasContent = lat || lon || heading;
+        
+        // All filled fields must be valid AND at least one field must have content
+        const formValid = latValid && lonValid && headingValid && hasContent;
+        this.elements.setTakeoffBtn.disabled = !formValid;
+        
+        return formValid;
+    }
+    
+    async updateTakeoffSettings() {
+        if (!this.validateSettingsForm()) {
+            this.addMessage('error', 'Please provide at least one valid field.');
+            return;
+        }
+        
+        // Build request with only filled fields
+        const requestData = {};
+        const lat = this.elements.latitudeInput.value.trim();
+        const lon = this.elements.longitudeInput.value.trim();
+        const heading = this.elements.headingInput.value.trim();
+        
+        if (lat) requestData.latitude = parseFloat(lat);
+        if (lon) requestData.longitude = parseFloat(lon);
+        if (heading) requestData.heading = heading;
+        
+        try {
+            this.elements.setTakeoffBtn.disabled = true;
+            this.elements.setTakeoffBtn.textContent = 'Setting...';
+            
+            const response = await fetch(`${this.baseUrl}/api/settings/takeoff`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                const settings = result.settings;
+                const updatedFields = [];
+                if (requestData.latitude !== undefined) updatedFields.push(`Lat: ${settings.latitude.toFixed(6)}`);
+                if (requestData.longitude !== undefined) updatedFields.push(`Lon: ${settings.longitude.toFixed(6)}`);
+                if (requestData.heading !== undefined) updatedFields.push(`Heading: ${settings.heading}`);
+                
+                this.addMessage('agent', `✅ Takeoff settings updated: ${updatedFields.join(', ')}`);
+                
+                // Clear form
+                this.elements.latitudeInput.value = '';
+                this.elements.longitudeInput.value = '';
+                this.elements.headingInput.value = '';
+                
+                // Reload current settings display
+                this.loadCurrentSettings();
+                
+            } else {
+                this.addMessage('error', `Failed to update settings: ${result.error}`);
+            }
+            
+        } catch (error) {
+            console.error('Settings update failed:', error);
+            this.addMessage('error', `Connection failed: ${error.message}`);
+        } finally {
+            this.elements.setTakeoffBtn.disabled = false;
+            this.elements.setTakeoffBtn.textContent = 'Set Location';
+            this.validateSettingsForm();
         }
     }
 }

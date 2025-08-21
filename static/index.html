@@ -20,6 +20,60 @@
         </header>
 
         <div class="main-content">
+            <div class="settings-panel" id="settingsPanel">
+                <div class="settings-header" id="settingsHeader">
+                    <div class="header-content">
+                        <h3>🎯 Takeoff Settings</h3>
+                        <div class="collapsed-info" id="collapsedInfo">Loading...</div>
+                    </div>
+                    <button class="toggle-btn" id="settingsToggle">▶</button>
+                </div>
+                <div class="settings-content collapsed" id="settingsContent">
+                    <div class="current-settings" id="currentSettings">
+                        <div class="current-value">Current: Loading...</div>
+                    </div>
+                    <div class="settings-form">
+                        <div class="form-row">
+                            <input 
+                                type="number" 
+                                id="latitudeInput" 
+                                placeholder="Latitude" 
+                                step="0.000001" 
+                                min="-90" 
+                                max="90"
+                                class="coord-input"
+                            >
+                            <input 
+                                type="number" 
+                                id="longitudeInput" 
+                                placeholder="Longitude" 
+                                step="0.000001" 
+                                min="-180" 
+                                max="180"
+                                class="coord-input"
+                            >
+                        </div>
+                        <div class="form-row">
+                            <select id="headingInput" class="heading-input">
+                                <option value="">Select heading...</option>
+                                <option value="north">North</option>
+                                <option value="northeast">Northeast</option>
+                                <option value="east">East</option>
+                                <option value="southeast">Southeast</option>
+                                <option value="south">South</option>
+                                <option value="southwest">Southwest</option>
+                                <option value="west">West</option>
+                                <option value="northwest">Northwest</option>
+                            </select>
+                            <button id="setTakeoffBtn" class="set-btn" disabled>Set Location</button>
+                        </div>
+                        <div class="form-help">
+                            Set custom takeoff location and heading. Empty fields will use current values.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="mode-selector">
                 <button class="mode-btn active" id="missionModeBtn" data-mode="mission">
                     📋 Mission Mode

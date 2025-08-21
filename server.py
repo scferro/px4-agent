@@ -14,7 +14,7 @@ import traceback
 import logging
 
 from core import PX4Agent
-from config import get_settings, reload_settings
+from config import get_settings, reload_settings, update_takeoff_settings, get_current_takeoff_settings
 
 
 class PX4AgentServer:
@@ -249,6 +249,85 @@ class PX4AgentServer:
                 return jsonify({
                     "success": False,
                     "error": str(e)
+                }), 500
+        
+        @self.app.route('/api/settings/takeoff', methods=['GET'])
+        def get_takeoff_settings():
+            """Get current takeoff settings"""
+            try:
+                settings = get_current_takeoff_settings()
+                return jsonify({
+                    "success": True,
+                    "settings": settings
+                })
+            except Exception as e:
+                return jsonify({
+                    "success": False,
+                    "error": str(e)
+                }), 500
+        
+        @self.app.route('/api/settings/takeoff', methods=['POST'])
+        def update_takeoff_settings_endpoint():
+            """Update takeoff settings at runtime"""
+            try:
+                data = request.get_json()
+                if not data:
+                    return jsonify({
+                        "success": False,
+                        "error": "No data provided"
+                    }), 400
+                
+                # Check if at least one field is provided
+                provided_fields = [field for field in ['latitude', 'longitude', 'heading'] if field in data]
+                if not provided_fields:
+                    return jsonify({
+                        "success": False,
+                        "error": "At least one field (latitude, longitude, heading) must be provided"
+                    }), 400
+                
+                # Get current settings first
+                current_settings = get_current_takeoff_settings()
+                
+                # Extract and validate provided fields
+                latitude = current_settings['latitude']
+                longitude = current_settings['longitude']
+                heading = current_settings['heading']
+                
+                try:
+                    if 'latitude' in data:
+                        latitude = float(data['latitude'])
+                    if 'longitude' in data:
+                        longitude = float(data['longitude'])
+                    if 'heading' in data:
+                        heading = str(data['heading']).strip()
+                except (ValueError, TypeError) as e:
+                    return jsonify({
+                        "success": False,
+                        "error": f"Invalid data format: {str(e)}"
+                    }), 400
+                
+                # Update settings with merged values
+                update_takeoff_settings(latitude, longitude, heading)
+                
+                return jsonify({
+                    "success": True,
+                    "message": "Takeoff settings updated successfully",
+                    "settings": {
+                        "latitude": latitude,
+                        "longitude": longitude,
+                        "heading": heading
+                    }
+                })
+                
+            except ValueError as e:
+                return jsonify({
+                    "success": False,
+                    "error": str(e)
+                }), 400
+            except Exception as e:
+                return jsonify({
+                    "success": False,
+                    "error": f"Failed to update settings: {str(e)}"
                 }), 500
     
     def run(self, host='127.0.0.1', port=5000, debug=False):

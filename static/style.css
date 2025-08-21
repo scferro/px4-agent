@@ -254,6 +254,149 @@ body {
     color: var(--error-color);
 }
 
+/* Settings panel */
+.settings-panel {
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--bg-tertiary);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.header-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.settings-header:hover {
+    background: var(--border-color);
+}
+
+.settings-header h3 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.collapsed-info {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: normal;
+}
+
+.toggle-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.toggle-btn.collapsed {
+    transform: rotate(-90deg);
+}
+
+.settings-content {
+    padding: 1rem;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    max-height: 200px;
+    opacity: 1;
+}
+
+.settings-content.collapsed {
+    max-height: 0;
+    opacity: 0;
+    padding: 0 1rem;
+    overflow: hidden;
+}
+
+.current-settings {
+    margin-bottom: 0.75rem;
+    padding: 0.5rem;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+}
+
+.current-value {
+    color: var(--text-secondary);
+}
+
+.settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.form-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.coord-input, .heading-input {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    transition: border-color 0.2s ease;
+}
+
+.coord-input:focus, .heading-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.heading-input {
+    flex: 2;
+}
+
+.set-btn {
+    padding: 0.5rem 1rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+    white-space: nowrap;
+}
+
+.set-btn:hover:not(:disabled) {
+    background: var(--primary-hover);
+}
+
+.set-btn:disabled {
+    background: var(--text-muted);
+    cursor: not-allowed;
+}
+
+.form-help {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: -0.25rem;
+}
+
 /* Mission state */
 .mission-state {
     background: var(--bg-primary);
