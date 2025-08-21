@@ -46,13 +46,7 @@ class PX4AgentClient {
         this.elements.missionModeBtn.addEventListener('click', () => this.switchMode('mission'));
         this.elements.commandModeBtn.addEventListener('click', () => this.switchMode('command'));
         
-        // Input handling
-        this.elements.messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                this.sendMessage();
-            }
-        });
+        // Remove Enter key handling - now only use send button
         
         this.elements.messageInput.addEventListener('input', () => {
             this.updateSendButton();

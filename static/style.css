@@ -323,6 +323,7 @@ body {
 
 .input-wrapper {
     display: flex;
+    align-items: flex-start;
     gap: 0.5rem;
     margin-bottom: 0.5rem;
 }
@@ -335,6 +336,11 @@ body {
     background: var(--bg-secondary);
     color: var(--text-primary);
     font-size: 0.875rem;
+    font-family: inherit;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 100px;
+    max-height: 200px;
     transition: border-color 0.2s ease;
 }
 
@@ -354,6 +360,8 @@ body {
     transition: background-color 0.2s ease;
     font-size: 1rem;
     min-width: 48px;
+    align-self: flex-start;
+    margin-top: 0.75rem;
 }
 
 #sendButton:hover:not(:disabled) {

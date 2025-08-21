@@ -66,18 +66,17 @@
 
                 <div class="input-container">
                     <div class="input-wrapper">
-                        <input 
-                            type="text" 
+                        <textarea 
                             id="messageInput" 
-                            placeholder="Type your mission command..." 
-                            autocomplete="off"
-                        >
+                            placeholder="Type your mission command...&#10;&#10;You can write multiple lines here.&#10;Use the send button to submit." 
+                            rows="4"
+                        ></textarea>
                         <button id="sendButton" disabled>
                             <span class="send-icon">➤</span>
                         </button>
                     </div>
                     <div class="input-help">
-                        Press Enter to send • Type 'show' to review mission • Commands: takeoff, waypoint, loiter, survey, rtl
+                        Click Send button to submit • Type 'show' to review mission • Commands: takeoff, waypoint, loiter, survey, rtl
                     </div>
                 </div>
             </div>
