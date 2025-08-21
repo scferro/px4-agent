@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PX4 Agent - Mission Planning Chat</title>
+    <title>PX4 Agent</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -11,15 +11,28 @@
         <header class="header">
             <div class="header-content">
                 <h1>🚁 PX4 Agent</h1>
-                <p>Intelligent Drone Mission Planning</p>
-                <div class="connection-status" id="connectionStatus">
-                    <span class="status-dot" id="statusDot"></span>
-                    <span id="statusText">Connecting...</span>
-                </div>
             </div>
         </header>
 
-        <div class="main-content">
+        <div class="main-content">            
+            <div class="mode-selector">
+                <button class="mode-btn active" id="missionModeBtn" data-mode="mission">
+                    📋 Mission Mode
+                </button>
+                <button class="mode-btn" id="commandModeBtn" data-mode="command">
+                    ⚡ Command Mode
+                </button>
+            </div>
+
+            <div class="mode-description">
+                <div class="mode-desc active" id="missionDesc">
+                    <strong>Mission Mode:</strong> Interactive mission building - build complex multi-step missions
+                </div>
+                <div class="mode-desc" id="commandDesc">
+                    <strong>Command Mode:</strong> Single commands with reset - each command creates a fresh mission
+                </div>
+            </div>
+            
             <div class="settings-panel" id="settingsPanel">
                 <div class="settings-header" id="settingsHeader">
                     <div class="header-content">
@@ -71,24 +84,6 @@
                             Set custom takeoff location and heading. Empty fields will use current values.
                         </div>
                     </div>
-                </div>
-            </div>
-            
-            <div class="mode-selector">
-                <button class="mode-btn active" id="missionModeBtn" data-mode="mission">
-                    📋 Mission Mode
-                </button>
-                <button class="mode-btn" id="commandModeBtn" data-mode="command">
-                    ⚡ Command Mode
-                </button>
-            </div>
-
-            <div class="mode-description">
-                <div class="mode-desc active" id="missionDesc">
-                    <strong>Mission Mode:</strong> Interactive mission building - build complex multi-step missions
-                </div>
-                <div class="mode-desc" id="commandDesc">
-                    <strong>Command Mode:</strong> Single commands with reset - each command creates a fresh mission
                 </div>
             </div>
 
