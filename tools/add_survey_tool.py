@@ -23,13 +23,13 @@ class SurveyInput(BaseModel):
     mgrs: Optional[str] = Field(None, description="MGRS coordinate for survey center. Use ONLY when user provides MGRS coordinates.")
     
     # Relative positioning for center - use for "survey 2 miles north of here"
-    distance: Optional[float] = Field(None, description="Distance to survey center from reference point. Use with heading. Can set to 0.0 to survey around the reference frame.")
+    distance: Optional[float] = Field(None, description="Distance to survey center from reference point. Use with heading. Can set to 0.0 to survey around the reference frame. Put units in distance_units. ")
     heading: Optional[str] = Field(None, description="Direction to survey center: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Use with distance.")
     distance_units: Optional[str] = Field(None, description="Units for center distance: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km'.")
     relative_reference_frame: Optional[str] = Field(None, description="Reference point for center distance: 'origin' (takeoff), 'last_waypoint'. Make an educated guess if using relative positioning. Typically 'last_waypoint' unless user specifies 'origin'.")
     
     # Survey area size (for center+radius mode)
-    radius: Optional[float] = Field(None, description=f"Radius of circular survey area. Use with radius_units. Default = {_agent_settings['survey_default_radius']} {_agent_settings['survey_radius_units']}")
+    radius: Optional[float] = Field(None, description=f"Radius of circular survey area. Use with radius_units.  Put units in radius_units. Default = {_agent_settings['survey_default_radius']} {_agent_settings['survey_radius_units']}")
     radius_units: Optional[str] = Field(None, description="Units for survey radius: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km'.")
     
     # ===== CORNER POINTS SURVEY =====

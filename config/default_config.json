@@ -1,12 +1,12 @@
 {
   "model_command": {
-    "name": "qwen3:1.7b",
+    "name": "qwen3:0.6b",
     "base_url": "http://localhost:11434",
     "temperature": 0.3,
     "top_p": 0.6,
     "top_k": 30,
     "timeout": 60,
-    "max_tokens": 65536
+    "max_tokens": 32768
   },
   "model_mission": {
     "name": "qwen3:4b-instruct",

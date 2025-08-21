@@ -298,17 +298,19 @@ class MissionValidator:
                 item.altitude = getattr(self.settings.agent, f"{command_type}_default_altitude")
                 fixes.append(f"Set default {command_type} altitude: {item.altitude} {item.altitude_units or 'units'}")
         
-        # Clamp to min/max constraints (convert item altitude to meters for comparison)
-        item_altitude_meters = convert_units(item.altitude, item.altitude_units, 'meters')
+        # Clamp to min/max constraints (convert item altitude to config units for comparison)
+        item_altitude_config_units = convert_units(item.altitude, item.altitude_units, config_units)
         
-        if item_altitude_meters < min_alt_meters:
-            # Convert minimum back to item's units and update
-            item.altitude = convert_units(min_alt_meters, 'meters', item.altitude_units)
-            fixes.append(f"Clamped {command_type} altitude to minimum: {item.altitude} {item.altitude_units or 'units'}")
-        elif item_altitude_meters > max_alt_meters:
-            # Convert maximum back to item's units and update
-            item.altitude = convert_units(max_alt_meters, 'meters', item.altitude_units)
-            fixes.append(f"Clamped {command_type} altitude to maximum: {item.altitude} {item.altitude_units or 'units'}")
+        if item_altitude_config_units < min_alt:
+            # Use the settings minimum value and units directly
+            item.altitude = min_alt
+            item.altitude_units = config_units
+            fixes.append(f"Clamped {command_type} altitude to minimum: {item.altitude} {item.altitude_units}")
+        elif item_altitude_config_units > max_alt:
+            # Use the settings maximum value and units directly
+            item.altitude = max_alt
+            item.altitude_units = config_units
+            fixes.append(f"Clamped {command_type} altitude to maximum: {item.altitude} {item.altitude_units}")
         
         return fixes
 
@@ -329,17 +331,19 @@ class MissionValidator:
             item.radius = getattr(self.settings.agent, f"{command_type}_default_radius")
             fixes.append(f"Set default {command_type} radius: {item.radius} {config_units or 'units'}")
         
-        # Clamp to min/max constraints (convert item radius to meters for comparison)
-        item_radius_meters = convert_units(item.radius, item.radius_units, 'meters')
+        # Clamp to min/max constraints (convert item radius to config units for comparison)
+        item_radius_config_units = convert_units(item.radius, item.radius_units, config_units)
         
-        if item_radius_meters < min_radius_meters:
-            # Convert minimum back to item's units and update
-            item.radius = convert_units(min_radius_meters, 'meters', item.radius_units)
-            fixes.append(f"Clamped {command_type} radius to minimum: {item.radius} {item.radius_units or 'units'}")
-        elif item_radius_meters > max_radius_meters:
-            # Convert maximum back to item's units and update
-            item.radius = convert_units(max_radius_meters, 'meters', item.radius_units)
-            fixes.append(f"Clamped {command_type} radius to maximum: {item.radius} {item.radius_units or 'units'}")
+        if item_radius_config_units < min_radius:
+            # Use the settings minimum value and units directly
+            item.radius = min_radius
+            item.radius_units = config_units
+            fixes.append(f"Clamped {command_type} radius to minimum: {item.radius} {item.radius_units}")
+        elif item_radius_config_units > max_radius:
+            # Use the settings maximum value and units directly
+            item.radius = max_radius
+            item.radius_units = config_units
+            fixes.append(f"Clamped {command_type} radius to maximum: {item.radius} {item.radius_units}")
         
         return fixes
 

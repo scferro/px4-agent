@@ -28,7 +28,7 @@ class WaypointInput(BaseModel):
     relative_reference_frame: Optional[str] = Field(None, description="Reference point for distance: 'origin' (takeoff), 'last_waypoint'. Make an educated guess if using relative positioning. Typically 'last_waypoint' unless user specifies 'origin'.")
     
     # Altitude specification
-    altitude: Optional[float] = Field(None, description=f"Flight altitude for this waypoint. Specify only if user mentions altitude. Default = {_agent_settings['waypoint_default_altitude']} {_agent_settings['waypoint_altitude_units']}")
+    altitude: Optional[float] = Field(None, description=f"Flight altitude for this waypoint. Specify only if user mentions altitude. Put units in altitude`_units. Default = {_agent_settings['waypoint_default_altitude']} {_agent_settings['waypoint_altitude_units']}")
     altitude_units: Optional[str] = Field(None, description="Units for altitude: 'meters'/'m' or 'feet'/'ft'.")
         
     # Insertion position

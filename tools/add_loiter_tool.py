@@ -27,11 +27,11 @@ class LoiterInput(BaseModel):
     relative_reference_frame: Optional[str] = Field(None, description="Reference point for distance: 'origin' (takeoff), 'last_waypoint'. Make an educated guess if using relative positioning. Typically 'last_waypoint' unless user specifies 'origin'.")
     
     # Orbit radius - critical parameter often specified by user
-    radius: Optional[float] = Field(None, description=f"Radius of the circular orbit. Default = {_agent_settings['loiter_default_radius']} {_agent_settings['loiter_radius_units']}")
+    radius: Optional[float] = Field(None, description=f"Radius of the circular orbit. Put units in radius_units. Default = {_agent_settings['loiter_default_radius']} {_agent_settings['loiter_radius_units']}")
     radius_units: Optional[str] = Field(None, description="Units for orbit radius: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km'.")
     
     # Optional orbit altitude
-    altitude: Optional[float] = Field(None, description=f"Altitude for the orbit pattern. Specify only if user mentions height. Default = {_agent_settings['loiter_default_altitude']} {_agent_settings['loiter_altitude_units']}")
+    altitude: Optional[float] = Field(None, description=f"Altitude for the orbit pattern. Specify only if user mentions height. Put units in altitude_units. Default = {_agent_settings['loiter_default_altitude']} {_agent_settings['loiter_altitude_units']}")
     altitude_units: Optional[str] = Field(None, description="Units for orbit altitude: 'meters'/'m' or 'feet'/'ft'.")
     
     # Insertion position
