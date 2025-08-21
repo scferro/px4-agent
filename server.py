@@ -330,7 +330,7 @@ class PX4AgentServer:
                     "error": f"Failed to update settings: {str(e)}"
                 }), 500
     
-    def run(self, host='127.0.0.1', port=5000, debug=False):
+    def run(self, host='0.0.0.0', port=5000, debug=False):
         """Run the Flask server"""
         print(f"🌐 Starting PX4Agent server on http://{host}:{port}")
         print(f"📍 Mission endpoint: POST http://{host}:{port}/api/mission")
@@ -345,7 +345,7 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="PX4 Agent Flask Server")
-    parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
+    parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
     parser.add_argument("--port", type=int, default=5000, help="Port to bind to")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output")
     parser.add_argument("--debug", action="store_true", help="Enable Flask debug mode")
