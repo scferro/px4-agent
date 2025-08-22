@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from .tools import PX4ToolBase
 from config.settings import get_agent_settings
-from core.parsing import parse_altitude
+from core.parsing import parse_altitude, parse_coordinates
 
 # Load agent settings for Field descriptions
 _agent_settings = get_agent_settings()
@@ -17,9 +17,8 @@ _agent_settings = get_agent_settings()
 class TakeoffInput(BaseModel):
     """Launch drone from ground to specified flight altitude"""
     
-    # GPS coordinates for takeoff location - usually leave None
-    latitude: Optional[float] = Field(None, description="Takeoff GPS latitude. Usually leave None to takeoff from current drone position. Use ONLY when latitude is specified.")
-    longitude: Optional[float] = Field(None, description="Takeoff GPS longitude. Usually leave None to takeoff from current drone position. Use ONLY when longitude is specified.")
+    # GPS coordinates - RARELY needed, usually takeoff from current position
+    coordinates: Optional[Union[str, tuple]] = Field(None, description="GPS coordinates as 'lat,lon' (e.g., '40.7128,-74.0060'). **Usually leave empty to takeoff from current drone position.** Only use when user specifies exact takeoff coordinates.")
     mgrs: Optional[str] = Field(None, description="MGRS coordinate string. Use when user provides MGRS grid coordinates for takeoff location.")
     
     # Target altitude - required parameter
@@ -35,6 +34,16 @@ class TakeoffInput(BaseModel):
             return v  # Let Pydantic handle validation error
         return (parsed_value, units)
     
+    @field_validator('coordinates', mode='before')
+    @classmethod
+    def parse_coordinates_field(cls, v):
+        if v is None:
+            return None
+        lat, lon = parse_coordinates(v)
+        if lat is None or lon is None:
+            return v  # Let Pydantic handle validation error
+        return (lat, lon)
+    
     # VTOL transition heading
     heading: Optional[str] = Field(None, description="Direction VTOL will point during transition to forward flight: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Typically into the wind. Use ONLY when direction is specified.")
 
@@ -47,7 +56,7 @@ class AddTakeoffTool(PX4ToolBase):
     def __init__(self, mission_manager):
         super().__init__(mission_manager)
     
-    def _run(self, latitude: Optional[float] = None, longitude: Optional[float] = None, 
+    def _run(self, coordinates: Optional[Union[str, tuple]] = None, 
              altitude: Optional[Union[float, tuple]] = None, mgrs: Optional[str] = None, heading: Optional[str] = None) -> str:
         # Create response
         response = ""
@@ -59,6 +68,12 @@ class AddTakeoffTool(PX4ToolBase):
                 altitude_value, altitude_units = altitude
             else:
                 altitude_value, altitude_units = altitude, 'meters'
+            
+            # Parse coordinates from validator
+            if isinstance(coordinates, tuple):
+                latitude, longitude = coordinates
+            else:
+                latitude, longitude = None, None
             
             # Save current mission state for potential rollback
             saved_state = self._save_mission_state()

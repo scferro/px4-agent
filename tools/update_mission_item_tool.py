@@ -7,7 +7,7 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field, field_validator
 
 from .tools import PX4ToolBase
-from core.parsing import parse_altitude, parse_distance, parse_radius
+from core.parsing import parse_altitude, parse_distance, parse_radius, parse_coordinates
 
 
 class UpdateMissionItemInput(BaseModel):
@@ -15,15 +15,14 @@ class UpdateMissionItemInput(BaseModel):
     
     seq: int = Field(description="Mission item number to update (1=first item, 2=second item, etc.)")
     
-    # GPS coordinates - use when user provides exact lat/lon numbers
-    latitude: Optional[float] = Field(None, description="New GPS latitude in decimal degrees.")
-    longitude: Optional[float] = Field(None, description="New GPS longitude in decimal degrees.")
+    # GPS coordinates - DISCOURAGED, prefer relative positioning
+    coordinates: Optional[Union[str, tuple]] = Field(None, description="New GPS coordinates as 'lat,lon' (e.g., '40.7128,-74.0060'). **Avoid using unless user provides exact coordinates.** Prefer distance/heading/reference_frame for more intuitive positioning.")
     mgrs: Optional[str] = Field(None, description="New MGRS coordinate string like '11SMT1234567890'.")
     
-    # Relative positioning - use for directional commands like "move 2 miles north"
-    distance: Optional[Union[float, str, tuple]] = Field(None, description="New distance value for relative positioning with optional units (e.g., '2 miles', '1000 meters', '500 ft').")
-    heading: Optional[str] = Field(None, description="New compass direction as text.")
-    relative_reference_frame: Optional[str] = Field(None, description="New reference point for distance measurement. Use 'origin' when user references 'start', 'takeoff', 'here', etc., 'last_waypoint' if the user references the last waypoint, or 'self' to move the item relative to its current position.")
+    # Relative positioning - PREFERRED method for positioning
+    distance: Optional[Union[float, str, tuple]] = Field(None, description="**PREFERRED**: New distance value for relative positioning with optional units (e.g., '2 miles', '1000 meters', '500 ft').")
+    heading: Optional[str] = Field(None, description="**PREFERRED**: New compass direction as text.")
+    relative_reference_frame: Optional[str] = Field(None, description="**PREFERRED**: New reference point for distance measurement. Use 'origin' when user references 'start', 'takeoff', 'here', etc., 'last_waypoint' if the user references the last waypoint, or 'self' to move the item relative to its current position.")
     
     # Altitude specification
     altitude: Optional[Union[float, str, tuple]] = Field(None, description="New altitude for the specified item with optional units (e.g., '150 feet', '50 meters').")
@@ -61,6 +60,16 @@ class UpdateMissionItemInput(BaseModel):
             return v  # Let Pydantic handle validation error
         return (parsed_value, units)
     
+    @field_validator('coordinates', mode='before')
+    @classmethod
+    def parse_coordinates_field(cls, v):
+        if v is None:
+            return None
+        lat, lon = parse_coordinates(v)
+        if lat is None or lon is None:
+            return v  # Let Pydantic handle validation error
+        return (lat, lon)
+    
     # Search parameters
     search_target: Optional[str] = Field(None, description="Target description for AI to search for during this mission item (e.g., 'vehicles', 'people', 'buildings').")
     detection_behavior: Optional[str] = Field(None, description="Detection behavior: 'tag_and_continue' (mark targets and continue mission) or 'detect_and_monitor' (abort mission and circle detected target).")
@@ -74,7 +83,7 @@ class UpdateMissionItemTool(PX4ToolBase):
     def __init__(self, mission_manager):
         super().__init__(mission_manager)
     
-    def _run(self, seq: int, latitude: Optional[float] = None, longitude: Optional[float] = None, mgrs: Optional[str] = None,
+    def _run(self, seq: int, coordinates: Optional[Union[str, tuple]] = None, mgrs: Optional[str] = None,
              distance: Optional[Union[float, tuple]] = None, heading: Optional[str] = None, 
              relative_reference_frame: Optional[str] = None, altitude: Optional[Union[float, tuple]] = None, 
              radius: Optional[Union[float, tuple]] = None,
@@ -99,6 +108,12 @@ class UpdateMissionItemTool(PX4ToolBase):
                 radius_value, radius_units = radius
             else:
                 radius_value, radius_units = radius, 'meters'
+            
+            # Parse coordinates from validator
+            if isinstance(coordinates, tuple):
+                latitude, longitude = coordinates
+            else:
+                latitude, longitude = None, None
             
             mission = self.mission_manager.get_mission()
             if not mission or not mission.items:

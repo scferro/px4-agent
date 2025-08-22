@@ -108,3 +108,71 @@ def create_measurement_validator(default_units: str = 'meters'):
             return v
         return (parsed_value, units)
     return validator
+
+
+def parse_coordinates(value: Union[str, tuple, None]) -> Tuple[Optional[float], Optional[float]]:
+    """
+    Parse coordinate string into (latitude, longitude) tuple.
+    
+    Args:
+        value: Input value - can be string with coordinates, tuple, or None
+        
+    Returns:
+        Tuple of (latitude, longitude) or (None, None) if invalid
+        
+    Examples:
+        "40.7128, -74.0060" -> (40.7128, -74.0060)
+        "40.7128,-74.0060" -> (40.7128, -74.0060)
+        "lat: 40.7128, lon: -74.0060" -> (40.7128, -74.0060)
+        "40.7128" -> (40.7128, None)  # incomplete
+        (40.7128, -74.0060) -> (40.7128, -74.0060)
+        None -> (None, None)
+        "invalid" -> (None, None)
+    """
+    if value is None:
+        return (None, None)
+    
+    # Handle tuple inputs
+    if isinstance(value, tuple):
+        if len(value) == 2:
+            try:
+                lat = float(value[0]) if value[0] is not None else None
+                lon = float(value[1]) if value[1] is not None else None
+                return (lat, lon)
+            except (ValueError, TypeError):
+                return (None, None)
+        return (None, None)
+    
+    # Handle string inputs
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return (None, None)
+        
+        # Remove common labels/prefixes
+        value = re.sub(r'lat(itude)?:\s*', '', value, flags=re.IGNORECASE)
+        value = re.sub(r'lon(gitude)?:\s*', '', value, flags=re.IGNORECASE)
+        value = value.strip()
+        
+        # Try to extract two decimal numbers separated by comma
+        # Regex matches: float, optional whitespace, comma, optional whitespace, float
+        match = re.match(r'^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$', value)
+        if match:
+            try:
+                lat = float(match.group(1))
+                lon = float(match.group(2))
+                return (lat, lon)
+            except ValueError:
+                return (None, None)
+        
+        # Try single number (incomplete coordinate)
+        match = re.match(r'^(-?\d+(?:\.\d+)?)$', value)
+        if match:
+            try:
+                lat = float(match.group(1))
+                return (lat, None)
+            except ValueError:
+                return (None, None)
+    
+    # For any other type, return None
+    return (None, None)

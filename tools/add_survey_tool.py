@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from .tools import PX4ToolBase
 from config.settings import get_agent_settings
-from core.parsing import parse_altitude, parse_distance, parse_radius
+from core.parsing import parse_altitude, parse_distance, parse_radius, parse_coordinates
 
 # Load agent settings for Field descriptions
 _agent_settings = get_agent_settings()
@@ -18,15 +18,14 @@ class SurveyInput(BaseModel):
     """Create survey pattern over specified area using center+radius OR corner points"""
     
     # ===== CENTER + RADIUS SURVEY =====
-    # Center location (use same positioning options as waypoints)
-    latitude: Optional[float] = Field(None, description="GPS latitude for survey center. Use ONLY when center latitude is specified by the user.")
-    longitude: Optional[float] = Field(None, description="GPS longitude for survey center. Use ONLY when center longitude is specified by the user.")
+    # Center location - DISCOURAGED, prefer relative positioning
+    coordinates: Optional[Union[str, tuple]] = Field(None, description="GPS coordinates as 'lat,lon' for survey center (e.g., '40.7128,-74.0060'). **Avoid using unless user provides exact coordinates.** Prefer distance/heading/reference_frame for more intuitive positioning.")
     mgrs: Optional[str] = Field(None, description="MGRS coordinate for survey center. Use ONLY when user provides MGRS coordinates.")
     
-    # Relative positioning for center - use for "survey 2 miles north of here"
-    distance: Optional[Union[float, str, tuple]] = Field(None, description="Distance to survey center from reference point with optional units (e.g., '2 miles', '1000 meters', '500 ft'). Use with heading. Can set to 0.0 to survey around the reference frame.")
-    heading: Optional[str] = Field(None, description="Direction to survey center: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Use with distance.")
-    relative_reference_frame: Optional[str] = Field(None, description="Reference point for center distance: 'origin' (takeoff), 'last_waypoint'. You MUST pick one, make an educated guess if using relative positioning. Use 'origin' when user references 'start', 'takeoff', 'here', etc. Otherwise assume last_waypoint.")
+    # Relative positioning - PREFERRED method for positioning
+    distance: Optional[Union[float, str, tuple]] = Field(None, description="**PREFERRED**: Distance to survey center from reference point with optional units (e.g., '2 miles', '1000 meters', '500 ft'). Use with heading. Can set to 0.0 to survey around the reference frame.")
+    heading: Optional[str] = Field(None, description="**PREFERRED**: Direction to survey center: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Use with distance.")
+    relative_reference_frame: Optional[str] = Field(None, description="**PREFERRED**: Reference point for center distance: 'origin' (takeoff), 'last_waypoint'. You MUST pick one, make an educated guess if using relative positioning. Use 'origin' when user references 'start', 'takeoff', 'here', etc. Otherwise assume last_waypoint.")
     
     # Survey area size (for center+radius mode)
     radius: Optional[Union[float, str, tuple]] = Field(None, description=f"Radius of circular survey area with optional units (e.g., '1 mile', '500 meters', '1000 ft'). Default = {_agent_settings['survey_default_radius']} {_agent_settings['survey_radius_units']}")
@@ -80,6 +79,16 @@ class SurveyInput(BaseModel):
             return v  # Let Pydantic handle validation error
         return (parsed_value, units)
     
+    @field_validator('coordinates', mode='before')
+    @classmethod
+    def parse_coordinates_field(cls, v):
+        if v is None:
+            return None
+        lat, lon = parse_coordinates(v)
+        if lat is None or lon is None:
+            return v  # Let Pydantic handle validation error
+        return (lat, lon)
+    
     # Insertion position
     insert_at: Optional[int] = Field(None, description="Position to insert survey in mission. Omit to add at end.")
     
@@ -96,7 +105,7 @@ class AddSurveyTool(PX4ToolBase):
     def __init__(self, mission_manager):
         super().__init__(mission_manager)
 
-    def _run(self, latitude: Optional[float] = None, longitude: Optional[float] = None, mgrs: Optional[str] = None,
+    def _run(self, coordinates: Optional[Union[str, tuple]] = None, mgrs: Optional[str] = None,
              distance: Optional[Union[float, tuple]] = None, heading: Optional[str] = None,
              relative_reference_frame: Optional[str] = None, radius: Optional[Union[float, tuple]] = None,
              corner1_lat: Optional[float] = None, corner1_lon: Optional[float] = None, corner1_mgrs: Optional[str] = None,
@@ -121,6 +130,12 @@ class AddSurveyTool(PX4ToolBase):
                 altitude_value, altitude_units = altitude
             else:
                 altitude_value, altitude_units = altitude, 'meters'
+            
+            # Parse coordinates from validator
+            if isinstance(coordinates, tuple):
+                latitude, longitude = coordinates
+            else:
+                latitude, longitude = None, None
             
             # Save current mission state for potential rollback
             saved_state = self._save_mission_state()
