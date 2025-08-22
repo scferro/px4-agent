@@ -11,6 +11,10 @@
         <header class="header">
             <div class="header-content">
                 <h1>🚁 PX4 Agent</h1>
+                <div class="connection-status" id="connectionStatus">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="statusText">Connecting...</span>
+                </div>
             </div>
         </header>
 
@@ -32,7 +36,7 @@
                     <strong>Command Mode:</strong> Single commands with reset - each command creates a fresh mission
                 </div>
             </div>
-            
+
             <div class="settings-panel" id="settingsPanel">
                 <div class="settings-header" id="settingsHeader">
                     <div class="header-content">
@@ -110,6 +114,11 @@
                     <h3>📋 Current Mission</h3>
                     <div class="mission-items" id="missionItems">
                         <div class="empty-mission">No mission items yet</div>
+                    </div>
+                    <div class="mission-actions">
+                        <button id="convertToAbsoluteBtn" class="convert-btn" disabled>
+                            Generate Absolute Points
+                        </button>
                     </div>
                 </div>
 

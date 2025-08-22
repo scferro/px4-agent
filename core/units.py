@@ -172,6 +172,71 @@ def get_supported_units() -> list:
     return sorted(units + aliases)
 
 
+# Coordinate conversion utilities
+
+import math
+
+def calculate_absolute_coordinates(ref_lat: float, ref_lon: float, distance: float, heading: str, distance_units: str = 'meters') -> tuple[float, float]:
+    """
+    Calculate absolute lat/long coordinates from a reference point using distance and compass heading
+    
+    Args:
+        ref_lat: Reference latitude in decimal degrees
+        ref_lon: Reference longitude in decimal degrees
+        distance: Distance from reference point
+        heading: Compass direction ('north', 'northeast', 'east', etc.)
+        distance_units: Units of distance (converted to meters internally)
+        
+    Returns:
+        Tuple of (calculated_lat, calculated_lon) in decimal degrees
+    """
+    if distance is None or heading is None:
+        return ref_lat, ref_lon
+    
+    # Convert distance to meters
+    distance_meters = convert_to_meters(distance, distance_units)
+    
+    # Convert heading to bearing in degrees
+    heading_map = {
+        'north': 0,
+        'northeast': 45,
+        'east': 90,
+        'southeast': 135,
+        'south': 180,
+        'southwest': 225,
+        'west': 270,
+        'northwest': 315
+    }
+    
+    bearing_degrees = heading_map.get(heading.lower(), 0)
+    bearing_radians = math.radians(bearing_degrees)
+    
+    # Earth radius in meters
+    earth_radius = 6378137.0
+    
+    # Convert reference coordinates to radians
+    ref_lat_rad = math.radians(ref_lat)
+    ref_lon_rad = math.radians(ref_lon)
+    
+    # Calculate new latitude
+    new_lat_rad = math.asin(
+        math.sin(ref_lat_rad) * math.cos(distance_meters / earth_radius) +
+        math.cos(ref_lat_rad) * math.sin(distance_meters / earth_radius) * math.cos(bearing_radians)
+    )
+    
+    # Calculate new longitude
+    new_lon_rad = ref_lon_rad + math.atan2(
+        math.sin(bearing_radians) * math.sin(distance_meters / earth_radius) * math.cos(ref_lat_rad),
+        math.cos(distance_meters / earth_radius) - math.sin(ref_lat_rad) * math.sin(new_lat_rad)
+    )
+    
+    # Convert back to degrees
+    new_lat = math.degrees(new_lat_rad)
+    new_lon = math.degrees(new_lon_rad)
+    
+    return new_lat, new_lon
+
+
 # Easy extensibility: To add new units, just add to UNIT_CONVERSIONS
 # Example for adding nautical miles:
 # UNIT_CONVERSIONS['nautical_miles'] = 1852.0  # 1 nautical mile = 1852 meters

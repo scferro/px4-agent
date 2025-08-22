@@ -25,7 +25,7 @@ class WaypointInput(BaseModel):
     distance: Optional[float] = Field(None, description="Distance value for relative positioning. Always use with heading parameter. Can set to 0.0 to fly over the reference frame.")
     heading: Optional[str] = Field(None, description="Compass direction: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Always use with distance parameter.")
     distance_units: Optional[str] = Field(None, description="Units for distance: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km', 'nautical_miles'/'nm'.")
-    relative_reference_frame: Optional[str] = Field(None, description="Reference point for distance: 'origin' (takeoff), 'last_waypoint'. Make an educated guess if using relative positioning. Typically 'last_waypoint' unless user specifies 'origin'.")
+    relative_reference_frame: Optional[str] = Field(None, description="Reference point for distance: 'origin' (takeoff), 'last_waypoint'. You MUST pick one, make an educated guess if using relative positioning. Use 'origin' when user references 'start', 'takeoff', 'here', etc. Otherwise assume last_waypoint.")
     
     # Altitude specification
     altitude: Optional[float] = Field(None, description=f"Flight altitude for this waypoint. Specify only if user mentions altitude. Put units in altitude`_units. Default = {_agent_settings['waypoint_default_altitude']} {_agent_settings['waypoint_altitude_units']}")

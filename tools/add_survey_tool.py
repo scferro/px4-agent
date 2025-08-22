@@ -26,7 +26,7 @@ class SurveyInput(BaseModel):
     distance: Optional[float] = Field(None, description="Distance to survey center from reference point. Use with heading. Can set to 0.0 to survey around the reference frame. Put units in distance_units. ")
     heading: Optional[str] = Field(None, description="Direction to survey center: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Use with distance.")
     distance_units: Optional[str] = Field(None, description="Units for center distance: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km'.")
-    relative_reference_frame: Optional[str] = Field(None, description="Reference point for center distance: 'origin' (takeoff), 'last_waypoint'. Make an educated guess if using relative positioning. Typically 'last_waypoint' unless user specifies 'origin'.")
+    relative_reference_frame: Optional[str] = Field(None, description="Reference point for center distance: 'origin' (takeoff), 'last_waypoint'. You MUST pick one, make an educated guess if using relative positioning. Use 'origin' when user references 'start', 'takeoff', 'here', etc. Otherwise assume last_waypoint.")
     
     # Survey area size (for center+radius mode)
     radius: Optional[float] = Field(None, description=f"Radius of circular survey area. Use with radius_units.  Put units in radius_units. Default = {_agent_settings['survey_default_radius']} {_agent_settings['survey_radius_units']}")

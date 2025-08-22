@@ -23,7 +23,7 @@ class UpdateMissionItemInput(BaseModel):
     distance: Optional[float] = Field(None, description="New distance value for relative positioning.")
     heading: Optional[str] = Field(None, description="New compass direction as text.")
     distance_units: Optional[str] = Field(None, description="New units for distance parameter: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km'.")
-    relative_reference_frame: Optional[str] = Field(None, description="New reference point for distance measurement.")
+    relative_reference_frame: Optional[str] = Field(None, description="New reference point for distance measurement. Use 'origin' when user references 'start', 'takeoff', 'here', etc. or 'last_waypoint' if the user references the last waypoint.")")
     
     # Altitude specification
     altitude: Optional[float] = Field(None, description="New altitude for the specified item.")

@@ -35,6 +35,7 @@ class PX4AgentClient {
             
             // Mission state elements
             missionItems: document.getElementById('missionItems'),
+            convertToAbsoluteBtn: document.getElementById('convertToAbsoluteBtn'),
             
             // Settings elements
             settingsHeader: document.getElementById('settingsHeader'),
@@ -68,6 +69,11 @@ class PX4AgentClient {
         // Settings panel handling
         this.elements.settingsHeader.addEventListener('click', () => this.toggleSettings());
         this.elements.setTakeoffBtn.addEventListener('click', () => this.updateTakeoffSettings());
+        
+        // Mission actions handling
+        if (this.elements.convertToAbsoluteBtn) {
+            this.elements.convertToAbsoluteBtn.addEventListener('click', () => this.convertMissionToAbsolute());
+        }
         
         // Settings input validation
         [this.elements.latitudeInput, this.elements.longitudeInput, this.elements.headingInput].forEach(input => {
@@ -275,6 +281,10 @@ class PX4AgentClient {
     clearMissionState() {
         // Reset mission state panel to empty state
         this.elements.missionItems.innerHTML = '<div class="empty-mission">No mission items yet</div>';
+        // Disable convert button when mission is empty
+        if (this.elements.convertToAbsoluteBtn) {
+            this.elements.convertToAbsoluteBtn.disabled = true;
+        }
     }
     
     updateMissionState(missionState) {
@@ -300,7 +310,11 @@ class PX4AgentClient {
             } else if (item.mgrs) {
                 details.push(`Position: MGRS ${item.mgrs}`);
             } else if (item.distance && item.heading) {
-                details.push(`Position: ${item.distance} ${item.distance_units || 'units'} ${item.heading}`);
+                let positionText = `Position: ${item.distance} ${item.distance_units || 'units'} ${item.heading}`;
+                if (item.relative_reference_frame) {
+                    positionText += ` from ${item.relative_reference_frame}`;
+                }
+                details.push(positionText);
             }
             
             // Add radius for loiter/survey
@@ -334,6 +348,11 @@ class PX4AgentClient {
         }).join('');
         
         this.elements.missionItems.innerHTML = itemsHtml;
+        
+        // Update convert button state after mission update
+        if (this.elements.convertToAbsoluteBtn) {
+            this.updateConvertButtonState(missionState);
+        }
     }
     
     getCommandEmoji(commandType) {
@@ -481,6 +500,65 @@ class PX4AgentClient {
             this.elements.setTakeoffBtn.disabled = false;
             this.elements.setTakeoffBtn.textContent = 'Set Location';
             this.validateSettingsForm();
+        }
+    }
+    
+    updateConvertButtonState(missionState) {
+        if (!this.elements.convertToAbsoluteBtn) {
+            return;
+        }
+        
+        if (!missionState || !missionState.items || missionState.items.length === 0) {
+            this.elements.convertToAbsoluteBtn.disabled = true;
+            return;
+        }
+        
+        // Check if any items have relative positioning (distance/heading) or MGRS
+        const hasRelativeItems = missionState.items.some(item => 
+            (item.distance !== null && item.heading !== null) || 
+            (item.mgrs !== null && item.mgrs !== undefined)
+        );
+        
+        this.elements.convertToAbsoluteBtn.disabled = !hasRelativeItems;
+    }
+    
+    async convertMissionToAbsolute() {
+        if (!this.elements.convertToAbsoluteBtn || this.elements.convertToAbsoluteBtn.disabled) {
+            return;
+        }
+        
+        try {
+            this.elements.convertToAbsoluteBtn.disabled = true;
+            this.elements.convertToAbsoluteBtn.textContent = 'Converting...';
+            this.showLoading(true);
+            
+            const response = await fetch(`${this.baseUrl}/api/mission/convert-to-absolute`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.addMessage('agent', `✅ ${result.message}`);
+                
+                // Update mission state with converted coordinates
+                if (result.mission_state) {
+                    this.updateMissionState(result.mission_state);
+                }
+            } else {
+                this.addMessage('error', `Failed to convert coordinates: ${result.error}`);
+            }
+            
+        } catch (error) {
+            console.error('Conversion failed:', error);
+            this.addMessage('error', `Connection failed: ${error.message}`);
+        } finally {
+            this.showLoading(false);
+            this.elements.convertToAbsoluteBtn.textContent = 'Generate Absolute Points';
+            // Button state will be updated by updateConvertButtonState in updateMissionState
         }
     }
 }

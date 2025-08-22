@@ -266,6 +266,99 @@ class PX4AgentServer:
                     "error": str(e)
                 }), 500
         
+        @self.app.route('/api/mission/convert-to-absolute', methods=['POST'])
+        def convert_mission_to_absolute():
+            """Convert all relative mission items to absolute lat/long coordinates"""
+            if not self.agent:
+                return jsonify({
+                    "success": False,
+                    "error": "PX4Agent not initialized"
+                }), 500
+            
+            try:
+                from core.units import calculate_absolute_coordinates
+                from config.settings import get_current_takeoff_settings
+                
+                mission = self.agent.mission_manager.get_mission() if self.agent.mission_manager else None
+                
+                if not mission or not mission.items:
+                    return jsonify({
+                        "success": False,
+                        "error": "No mission items to convert"
+                    }), 400
+                
+                # Get takeoff settings for origin reference
+                takeoff_settings = get_current_takeoff_settings()
+                origin_lat = takeoff_settings['latitude']
+                origin_lon = takeoff_settings['longitude']
+                
+                converted_count = 0
+                last_lat, last_lon = origin_lat, origin_lon
+                
+                for item in mission.items:
+                    # Skip items that already have absolute coordinates
+                    if item.latitude is not None and item.longitude is not None:
+                        last_lat, last_lon = item.latitude, item.longitude
+                        continue
+                    
+                    # Convert relative positioning to absolute coordinates
+                    if item.distance is not None and item.heading is not None:
+                        # Determine reference point
+                        if item.relative_reference_frame == 'origin':
+                            ref_lat, ref_lon = origin_lat, origin_lon
+                        else:  # default to last_waypoint
+                            ref_lat, ref_lon = last_lat, last_lon
+                        
+                        # Calculate absolute coordinates
+                        new_lat, new_lon = calculate_absolute_coordinates(
+                            ref_lat, ref_lon, 
+                            item.distance, item.heading, 
+                            item.distance_units or 'meters'
+                        )
+                        
+                        # Update mission item
+                        item.latitude = new_lat
+                        item.longitude = new_lon
+                        
+                        # Clear relative positioning data
+                        item.distance = None
+                        item.heading = None
+                        item.distance_units = None
+                        item.relative_reference_frame = None
+                        item.mgrs = None
+                        
+                        converted_count += 1
+                        last_lat, last_lon = new_lat, new_lon
+                    
+                    # Handle MGRS coordinates (simplified - would need proper MGRS library)
+                    elif item.mgrs is not None:
+                        # For now, just clear MGRS and keep existing lat/lon if available
+                        item.mgrs = None
+                        converted_count += 1
+                
+                if converted_count == 0:
+                    return jsonify({
+                        "success": False,
+                        "error": "No relative coordinates found to convert"
+                    }), 400
+                
+                # Update mission modified time
+                from datetime import datetime
+                mission.modified_at = datetime.now()
+                
+                return jsonify({
+                    "success": True,
+                    "message": f"Converted {converted_count} mission items to absolute coordinates",
+                    "converted_count": converted_count,
+                    "mission_state": mission.to_dict()
+                })
+                
+            except Exception as e:
+                return jsonify({
+                    "success": False,
+                    "error": f"Conversion failed: {str(e)}"
+                }), 500
+
         @self.app.route('/api/settings/takeoff', methods=['POST'])
         def update_takeoff_settings_endpoint():
             """Update takeoff settings at runtime"""

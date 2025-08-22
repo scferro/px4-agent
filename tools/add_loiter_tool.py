@@ -24,7 +24,7 @@ class LoiterInput(BaseModel):
     distance: Optional[float] = Field(None, description="Distance to orbit center from reference point. Use with heading. Can set to 0.0 to oribt AT the reference frame.")
     heading: Optional[str] = Field(None, description="Direction to orbit center: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Use with distance.")
     distance_units: Optional[str] = Field(None, description="Units for distance: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km'.")
-    relative_reference_frame: Optional[str] = Field(None, description="Reference point for distance: 'origin' (takeoff), 'last_waypoint'. Make an educated guess if using relative positioning. Typically 'last_waypoint' unless user specifies 'origin'.")
+    relative_reference_frame: Optional[str] = Field(None, description="Reference point for distance: 'origin' (takeoff), 'last_waypoint'. You MUST pick one, make an educated guess if using relative positioning. Use 'origin' when user references 'start', 'takeoff', 'here', etc. Otherwise assume last_waypoint.")
     
     # Orbit radius - critical parameter often specified by user
     radius: Optional[float] = Field(None, description=f"Radius of the circular orbit. Put units in radius_units. Default = {_agent_settings['loiter_default_radius']} {_agent_settings['loiter_radius_units']}")
