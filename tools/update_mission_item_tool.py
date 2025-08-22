@@ -20,9 +20,9 @@ class UpdateMissionItemInput(BaseModel):
     mgrs: Optional[str] = Field(None, description="New MGRS coordinate string like '11SMT1234567890'.")
     
     # Relative positioning - PREFERRED method for positioning
-    distance: Optional[Union[float, str, tuple]] = Field(None, description="**PREFERRED**: New distance value for relative positioning with optional units (e.g., '2 miles', '1000 meters', '500 ft').")
-    heading: Optional[str] = Field(None, description="**PREFERRED**: New compass direction as text.")
-    relative_reference_frame: Optional[str] = Field(None, description="**PREFERRED**: New reference point for distance measurement. Use 'origin' when user references 'start', 'takeoff', 'here', etc., 'last_waypoint' if the user references the last waypoint, or 'self' to move the item relative to its current position.")
+    distance: Optional[Union[float, str, tuple]] = Field(None, description="New distance value for relative positioning with optional units (e.g., '2 miles', '1000 meters', '500 ft').")
+    heading: Optional[str] = Field(None, description="New compass direction as text.")
+    relative_reference_frame: Optional[str] = Field(None, description="New reference point for distance measurement. Use 'origin' when user references 'start', 'takeoff', 'here', etc., 'last_waypoint' if the user references the last waypoint, or 'self' to move the item relative to its current position. Use 'self' for commands like 'move the waypoint 2 mi west' 'update the orbit point to be 1500m south of current position'.")
     
     # Altitude specification
     altitude: Optional[Union[float, str, tuple]] = Field(None, description="New altitude for the specified item with optional units (e.g., '150 feet', '50 meters').")
