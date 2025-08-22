@@ -81,11 +81,32 @@ class Mission:
         self.items.clear()
         self.modified_at = datetime.now()
     
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary format"""
-        return {
+    def to_dict(self, convert_to_absolute: bool = False) -> Dict[str, Any]:
+        """Convert to dictionary format
+        
+        Args:
+            convert_to_absolute: If True, convert relative coordinates to absolute for display
+        """
+        mission_dict = {
             'items': [item.to_dict() for item in self.items],
             'created_at': self.created_at.isoformat(),
             'modified_at': self.modified_at.isoformat()
         }
+        
+        # Apply coordinate conversion if requested
+        if convert_to_absolute and self.items:
+            from core.units import convert_mission_to_absolute_coordinates
+            from config.settings import get_current_takeoff_settings
+            
+            try:
+                takeoff_settings = get_current_takeoff_settings()
+                converted_dict = convert_mission_to_absolute_coordinates(self, takeoff_settings)
+                if converted_dict:
+                    mission_dict = converted_dict
+            except Exception as e:
+                # If conversion fails, return original mission dict
+                # This ensures the system is robust even if conversion has issues
+                pass
+        
+        return mission_dict
 

@@ -2,12 +2,13 @@
 Add RTL Tool - Return to launch command
 """
 
-from typing import Optional
+from typing import Optional, Union
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .tools import PX4ToolBase
 from config.settings import get_agent_settings
+from core.parsing import parse_altitude
 
 # Load agent settings for Field descriptions
 _agent_settings = get_agent_settings()
@@ -17,8 +18,17 @@ class RTLInput(BaseModel):
     """Return to launch - automatically fly back to takeoff point and land"""
     
     # Optional altitude specification
-    altitude: Optional[float] = Field(None, description=f"Landing altitude for RTL. Specify only if user mentions specific landing height. Default = {_agent_settings['rtl_default_altitude']} {_agent_settings['rtl_altitude_units']}")
-    altitude_units: Optional[str] = Field(None, description="Units for landing altitude: 'meters'/'m' or 'feet'/'ft'.")
+    altitude: Optional[Union[float, str, tuple]] = Field(None, description=f"Landing altitude for RTL with optional units (e.g., '20 feet', '5 meters'). Specify only if user mentions specific landing height. Default = {_agent_settings['rtl_default_altitude']} {_agent_settings['rtl_altitude_units']}")
+    
+    @field_validator('altitude', mode='before')
+    @classmethod
+    def parse_altitude_field(cls, v):
+        if v is None:
+            return None
+        parsed_value, units = parse_altitude(v)
+        if parsed_value is None:
+            return v  # Let Pydantic handle validation error
+        return (parsed_value, units)
 
 
 class AddRTLTool(PX4ToolBase):
@@ -29,17 +39,23 @@ class AddRTLTool(PX4ToolBase):
     def __init__(self, mission_manager):
         super().__init__(mission_manager)
     
-    def _run(self, altitude: Optional[float] = None, altitude_units: Optional[str] = None) -> str:
+    def _run(self, altitude: Optional[Union[float, tuple]] = None) -> str:
         # Create response
         response = ""
 
         # Populate response
         try:
+            # Parse measurement tuples from validators
+            if isinstance(altitude, tuple):
+                altitude_value, altitude_units = altitude
+            else:
+                altitude_value, altitude_units = altitude, 'meters'
+            
             # Save current mission state for potential rollback
             saved_state = self._save_mission_state()
             
             item = self.mission_manager.add_return_to_launch(
-                altitude=altitude,
+                altitude=altitude_value,
                 altitude_units=altitude_units
             )
             
@@ -50,7 +66,7 @@ class AddRTLTool(PX4ToolBase):
                 self._restore_mission_state(saved_state)
                 return f"Planning Error: {validation_msg}" + self._get_mission_state_summary()
             else:
-                altitude_msg = f" at {altitude} {altitude_units}" if altitude is not None else ""
+                altitude_msg = f" at {altitude_value} {altitude_units}" if altitude_value is not None else ""
                 response = f"Return to Launch command added to mission{altitude_msg} (Item {item.seq + 1})"
                 
                 # Include auto-fix notifications if any

@@ -237,7 +237,17 @@ class MissionManager:
         summary = f"\n\n<mission_state>\n<total_items>{len(mission.items)}</total_items>"
 
         if mission and mission.items:
-            for i, item in enumerate(mission.items):
+            # Use converted coordinates for display to model
+            try:
+                from config.settings import get_current_takeoff_settings
+                takeoff_settings = get_current_takeoff_settings()
+                converted_mission = mission.to_dict(convert_to_absolute=True)
+                items_to_display = [type('obj', (object,), item_dict) for item_dict in converted_mission['items']]
+            except Exception:
+                # Fallback to original mission if conversion fails
+                items_to_display = mission.items
+            
+            for i, item in enumerate(items_to_display):
                 command_type = getattr(item, 'command_type', 'unknown')
                 
                 summary += f"\n<item_{i+1}>"
@@ -255,10 +265,10 @@ class MissionManager:
                     radius_units = item.radius_units if item.radius_units is not None else "(radius_units)"
                     summary += f"\n  <radius>{radius_val} {radius_units}</radius>"
                 
-                # Add position info if available
-                if (hasattr(item, 'latitude') and item.latitude is not None) or (hasattr(item, 'longitude') and item.longitude is not None):
-                    lat_val = f"{item.latitude:.6f}" if item.latitude is not None else "(latitude)"
-                    lon_val = f"{item.longitude:.6f}" if item.longitude is not None else "(longitude)"
+                # Add position info - prioritize absolute coordinates from conversion
+                if (hasattr(item, 'latitude') and item.latitude is not None) and (hasattr(item, 'longitude') and item.longitude is not None):
+                    lat_val = f"{item.latitude:.6f}"
+                    lon_val = f"{item.longitude:.6f}"
                     summary += f"\n  <position>lat/lon ({lat_val}, {lon_val})</position>"
                 elif hasattr(item, 'mgrs') and item.mgrs is not None:
                     summary += f"\n  <position>MGRS {item.mgrs}</position>"

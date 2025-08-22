@@ -2,12 +2,13 @@
 Add Survey Tool - Create systematic survey patterns for area coverage
 """
 
-from typing import Optional, List
+from typing import Optional, List, Union
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .tools import PX4ToolBase
 from config.settings import get_agent_settings
+from core.parsing import parse_altitude, parse_distance, parse_radius
 
 # Load agent settings for Field descriptions
 _agent_settings = get_agent_settings()
@@ -23,14 +24,12 @@ class SurveyInput(BaseModel):
     mgrs: Optional[str] = Field(None, description="MGRS coordinate for survey center. Use ONLY when user provides MGRS coordinates.")
     
     # Relative positioning for center - use for "survey 2 miles north of here"
-    distance: Optional[float] = Field(None, description="Distance to survey center from reference point. Use with heading. Can set to 0.0 to survey around the reference frame. Put units in distance_units. ")
+    distance: Optional[Union[float, str, tuple]] = Field(None, description="Distance to survey center from reference point with optional units (e.g., '2 miles', '1000 meters', '500 ft'). Use with heading. Can set to 0.0 to survey around the reference frame.")
     heading: Optional[str] = Field(None, description="Direction to survey center: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Use with distance.")
-    distance_units: Optional[str] = Field(None, description="Units for center distance: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km'.")
     relative_reference_frame: Optional[str] = Field(None, description="Reference point for center distance: 'origin' (takeoff), 'last_waypoint'. You MUST pick one, make an educated guess if using relative positioning. Use 'origin' when user references 'start', 'takeoff', 'here', etc. Otherwise assume last_waypoint.")
     
     # Survey area size (for center+radius mode)
-    radius: Optional[float] = Field(None, description=f"Radius of circular survey area. Use with radius_units.  Put units in radius_units. Default = {_agent_settings['survey_default_radius']} {_agent_settings['survey_radius_units']}")
-    radius_units: Optional[str] = Field(None, description="Units for survey radius: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km'.")
+    radius: Optional[Union[float, str, tuple]] = Field(None, description=f"Radius of circular survey area with optional units (e.g., '1 mile', '500 meters', '1000 ft'). Default = {_agent_settings['survey_default_radius']} {_agent_settings['survey_radius_units']}")
     
     # ===== CORNER POINTS SURVEY =====
     # Corner points defining survey boundary (up to 4 corners for rectangular area)
@@ -49,8 +48,37 @@ class SurveyInput(BaseModel):
     
     # ===== SURVEY PARAMETERS =====
     # Survey flight parameters
-    altitude: Optional[float] = Field(None, description=f"Flight altitude for the survey pattern. Default = {_agent_settings['survey_default_altitude']} {_agent_settings['survey_altitude_units']}")
-    altitude_units: Optional[str] = Field(None, description="Units for survey altitude: 'meters'/'m' or 'feet'/'ft'.")
+    altitude: Optional[Union[float, str, tuple]] = Field(None, description=f"Flight altitude for the survey pattern with optional units (e.g., '150 feet', '50 meters'). Default = {_agent_settings['survey_default_altitude']} {_agent_settings['survey_altitude_units']}")
+    
+    @field_validator('distance', mode='before')
+    @classmethod
+    def parse_distance_field(cls, v):
+        if v is None:
+            return None
+        parsed_value, units = parse_distance(v)
+        if parsed_value is None:
+            return v  # Let Pydantic handle validation error
+        return (parsed_value, units)
+    
+    @field_validator('radius', mode='before')
+    @classmethod
+    def parse_radius_field(cls, v):
+        if v is None:
+            return None
+        parsed_value, units = parse_radius(v)
+        if parsed_value is None:
+            return v  # Let Pydantic handle validation error
+        return (parsed_value, units)
+    
+    @field_validator('altitude', mode='before')
+    @classmethod
+    def parse_altitude_field(cls, v):
+        if v is None:
+            return None
+        parsed_value, units = parse_altitude(v)
+        if parsed_value is None:
+            return v  # Let Pydantic handle validation error
+        return (parsed_value, units)
     
     # Insertion position
     insert_at: Optional[int] = Field(None, description="Position to insert survey in mission. Omit to add at end.")
@@ -69,15 +97,31 @@ class AddSurveyTool(PX4ToolBase):
         super().__init__(mission_manager)
 
     def _run(self, latitude: Optional[float] = None, longitude: Optional[float] = None, mgrs: Optional[str] = None,
-             distance: Optional[float] = None, heading: Optional[str] = None, distance_units: Optional[str] = None,
-             relative_reference_frame: Optional[str] = None, radius: Optional[float] = None, radius_units: Optional[str] = None,
+             distance: Optional[Union[float, tuple]] = None, heading: Optional[str] = None,
+             relative_reference_frame: Optional[str] = None, radius: Optional[Union[float, tuple]] = None,
              corner1_lat: Optional[float] = None, corner1_lon: Optional[float] = None, corner1_mgrs: Optional[str] = None,
              corner2_lat: Optional[float] = None, corner2_lon: Optional[float] = None, corner2_mgrs: Optional[str] = None,
              corner3_lat: Optional[float] = None, corner3_lon: Optional[float] = None, corner3_mgrs: Optional[str] = None,
              corner4_lat: Optional[float] = None, corner4_lon: Optional[float] = None, corner4_mgrs: Optional[str] = None,
-             altitude: Optional[float] = None, altitude_units: Optional[str] = None,
+             altitude: Optional[Union[float, tuple]] = None,
              insert_at: Optional[int] = None, search_target: Optional[str] = None, detection_behavior: Optional[str] = None) -> str:
         try:
+            # Parse measurement tuples from validators
+            if isinstance(distance, tuple):
+                distance_value, distance_units = distance
+            else:
+                distance_value, distance_units = distance, 'meters'
+            
+            if isinstance(radius, tuple):
+                radius_value, radius_units = radius
+            else:
+                radius_value, radius_units = radius, 'meters'
+            
+            if isinstance(altitude, tuple):
+                altitude_value, altitude_units = altitude
+            else:
+                altitude_value, altitude_units = altitude, 'meters'
+            
             # Save current mission state for potential rollback
             saved_state = self._save_mission_state()
             
@@ -97,11 +141,11 @@ class AddSurveyTool(PX4ToolBase):
                 # Corner points mode
                 survey_mode = "polygon"
                 area_desc = f"polygon with {len(corner_points)} corners"
-            elif latitude is not None or distance is not None:
+            elif latitude is not None or distance_value is not None:
                 # Center-based mode
-                if radius is not None:
+                if radius_value is not None:
                     survey_mode = "circular"
-                    area_desc = f"circular area (radius: {radius} {radius_units or 'meters'})"
+                    area_desc = f"circular area (radius: {radius_value} {radius_units or 'meters'})"
                 else:
                     return "Planning Error: Survey area size not specified. Provide radius for center-based survey" + self._get_mission_state_summary()
             else:
@@ -110,13 +154,13 @@ class AddSurveyTool(PX4ToolBase):
             # Build coordinate description for center (if applicable)
             if survey_mode != "polygon":
                 center_desc = self._build_coordinate_description(latitude, longitude, mgrs, 
-                                                               distance, heading, distance_units, 
+                                                               distance_value, heading, distance_units, 
                                                                relative_reference_frame)
             else:
                 center_desc = "defined by corner points"
             
             # Set defaults
-            actual_altitude = altitude or 100.0
+            actual_altitude = altitude_value or 100.0
             actual_altitude_units = altitude_units or "meters"
             
             # Create a survey mission item
@@ -124,7 +168,7 @@ class AddSurveyTool(PX4ToolBase):
                 mode=survey_mode,
                 center_lat=latitude or 0.0,
                 center_lon=longitude or 0.0,
-                radius=radius or 0.0,
+                radius=radius_value or 0.0,
                 corners=corner_points,
                 altitude=actual_altitude,
                 radius_units=radius_units,
@@ -132,10 +176,10 @@ class AddSurveyTool(PX4ToolBase):
                 insert_at=insert_at,
                 center_latitude=latitude,
                 center_longitude=longitude,
-                survey_radius=radius,
-                survey_altitude=altitude,
+                survey_radius=radius_value,
+                survey_altitude=altitude_value,
                 center_mgrs=mgrs,
-                center_distance=distance,
+                center_distance=distance_value,
                 center_heading=heading,
                 center_distance_units=distance_units,
                 center_relative_reference_frame=relative_reference_frame,
@@ -151,7 +195,7 @@ class AddSurveyTool(PX4ToolBase):
                 return f"Planning Error: {validation_msg}" + self._get_mission_state_summary()
             
             # Build response with preserved units
-            response = f"Survey pattern created for {area_desc} at {center_desc}, Alt={altitude} {altitude_units} (Item {item.seq + 1})"
+            response = f"Survey pattern created for {area_desc} at {center_desc}, Alt={altitude_value} {altitude_units} (Item {item.seq + 1})"
             
             # Include auto-fix notifications if any
             if validation_msg:

@@ -65,7 +65,42 @@ class MissionValidator:
             altitude_value = getattr(item, 'altitude', None)
             if altitude_value is not None and altitude_value <= 0:
                 errors.append(f"Item {index}: Altitude must be positive")
+        
+        # Validate reference frame positioning rules
+        positioning_errors = self._validate_positioning_consistency(item, index)
+        errors.extend(positioning_errors)
                         
+        return errors
+    
+    def _validate_positioning_consistency(self, item: MissionItem, index: int) -> List[str]:
+        """Validate that positioning data is consistent based on reference frame rules"""
+        errors = []
+        
+        has_absolute = (hasattr(item, 'latitude') and item.latitude is not None and 
+                       hasattr(item, 'longitude') and item.longitude is not None)
+        has_relative = (hasattr(item, 'distance') and item.distance is not None and 
+                       hasattr(item, 'heading') and item.heading is not None)
+        has_mgrs = (hasattr(item, 'mgrs') and item.mgrs is not None)
+        ref_frame = getattr(item, 'relative_reference_frame', None)
+        
+        # Rule 1: Only 'self' reference frame can have both absolute and relative positioning
+        if has_absolute and has_relative:
+            if ref_frame != 'self':
+                errors.append(f"Item {index + 1}: Cannot have both absolute coordinates and relative positioning unless using 'self' reference frame")
+        
+        # Rule 2: 'self' reference frame requires existing absolute coordinates
+        if ref_frame == 'self':
+            if has_relative and not has_absolute:
+                errors.append(f"Item {index + 1}: 'self' reference frame requires existing absolute coordinates (lat/long)")
+        
+        # Rule 3: MGRS should not coexist with other positioning types
+        if has_mgrs and (has_absolute or has_relative):
+            errors.append(f"Item {index + 1}: MGRS coordinates cannot coexist with other positioning types")
+        
+        # Rule 4: Validate reference frame values
+        if ref_frame is not None and ref_frame not in ['origin', 'last_waypoint', 'self']:
+            errors.append(f"Item {index + 1}: Invalid reference frame '{ref_frame}'. Must be 'origin', 'last_waypoint', or 'self'")
+        
         return errors
     
     def _validate_mission_mode_rules(self, mission: Mission) -> Tuple[List[str], List[str]]:

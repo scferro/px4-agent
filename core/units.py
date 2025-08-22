@@ -237,6 +237,81 @@ def calculate_absolute_coordinates(ref_lat: float, ref_lon: float, distance: flo
     return new_lat, new_lon
 
 
+def convert_mission_to_absolute_coordinates(mission, takeoff_settings):
+    """
+    Convert all relative mission items to absolute coordinates for display purposes.
+    This creates a copy with converted coordinates - does not modify the original mission.
+    
+    Args:
+        mission: Mission object with items
+        takeoff_settings: Dict with origin coordinates {'latitude': float, 'longitude': float}
+        
+    Returns:
+        Mission dict with all items having absolute coordinates
+    """
+    if not mission or not mission.items:
+        return None
+    
+    # Create a deep copy for conversion (don't modify original)
+    mission_dict = mission.to_dict()
+    
+    origin_lat = takeoff_settings['latitude']
+    origin_lon = takeoff_settings['longitude']
+    last_lat, last_lon = origin_lat, origin_lon
+    
+    for item_dict in mission_dict['items']:
+        # Skip items that already have absolute coordinates and no relative positioning
+        if (item_dict.get('latitude') is not None and item_dict.get('longitude') is not None and
+            item_dict.get('distance') is None and item_dict.get('heading') is None):
+            last_lat, last_lon = item_dict['latitude'], item_dict['longitude']
+            continue
+        
+        # Handle items with relative positioning
+        if item_dict.get('distance') is not None and item_dict.get('heading') is not None:
+            # Determine reference point based on reference frame
+            ref_frame = item_dict.get('relative_reference_frame', 'origin')
+            
+            if ref_frame == 'self':
+                # For 'self' reference, calculate offset from item's current position
+                if item_dict.get('latitude') is not None and item_dict.get('longitude') is not None:
+                    ref_lat, ref_lon = item_dict['latitude'], item_dict['longitude']
+                    # Calculate new position from current position + offset
+                    new_lat, new_lon = calculate_absolute_coordinates(
+                        ref_lat, ref_lon,
+                        item_dict['distance'], item_dict['heading'],
+                        item_dict.get('distance_units', 'meters')
+                    )
+                    # Update the displayed coordinates
+                    item_dict['latitude'] = new_lat
+                    item_dict['longitude'] = new_lon
+                    last_lat, last_lon = new_lat, new_lon
+                # If no existing coordinates for 'self', leave as-is (validation should catch this)
+            
+            elif ref_frame == 'origin':
+                ref_lat, ref_lon = origin_lat, origin_lon
+            else:  # 'last_waypoint' or default
+                ref_lat, ref_lon = last_lat, last_lon
+            
+            # For non-'self' reference frames, calculate absolute coordinates
+            if ref_frame != 'self':
+                new_lat, new_lon = calculate_absolute_coordinates(
+                    ref_lat, ref_lon,
+                    item_dict['distance'], item_dict['heading'],
+                    item_dict.get('distance_units', 'meters')
+                )
+                
+                # Update the displayed coordinates
+                item_dict['latitude'] = new_lat
+                item_dict['longitude'] = new_lon
+                last_lat, last_lon = new_lat, new_lon
+        
+        # Update last known position for next iteration
+        elif item_dict.get('latitude') is not None and item_dict.get('longitude') is not None:
+            last_lat, last_lon = item_dict['latitude'], item_dict['longitude']
+    
+    return mission_dict
+
+
 # Easy extensibility: To add new units, just add to UNIT_CONVERSIONS
 # Example for adding nautical miles:
 # UNIT_CONVERSIONS['nautical_miles'] = 1852.0  # 1 nautical mile = 1852 meters

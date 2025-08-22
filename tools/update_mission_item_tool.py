@@ -2,11 +2,12 @@
 Update Mission Item Tool - Modify specific mission item by sequence number
 """
 
-from typing import Optional
+from typing import Optional, Union
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .tools import PX4ToolBase
+from core.parsing import parse_altitude, parse_distance, parse_radius
 
 
 class UpdateMissionItemInput(BaseModel):
@@ -20,18 +21,45 @@ class UpdateMissionItemInput(BaseModel):
     mgrs: Optional[str] = Field(None, description="New MGRS coordinate string like '11SMT1234567890'.")
     
     # Relative positioning - use for directional commands like "move 2 miles north"
-    distance: Optional[float] = Field(None, description="New distance value for relative positioning.")
+    distance: Optional[Union[float, str, tuple]] = Field(None, description="New distance value for relative positioning with optional units (e.g., '2 miles', '1000 meters', '500 ft').")
     heading: Optional[str] = Field(None, description="New compass direction as text.")
-    distance_units: Optional[str] = Field(None, description="New units for distance parameter: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km'.")
-    relative_reference_frame: Optional[str] = Field(None, description="New reference point for distance measurement. Use 'origin' when user references 'start', 'takeoff', 'here', etc. or 'last_waypoint' if the user references the last waypoint.")")
+    relative_reference_frame: Optional[str] = Field(None, description="New reference point for distance measurement. Use 'origin' when user references 'start', 'takeoff', 'here', etc., 'last_waypoint' if the user references the last waypoint, or 'self' to move the item relative to its current position.")
     
     # Altitude specification
-    altitude: Optional[float] = Field(None, description="New altitude for the specified item.")
-    altitude_units: Optional[str] = Field(None, description="New altitude units for the update: 'meters'/'m' or 'feet'/'ft'.")
+    altitude: Optional[Union[float, str, tuple]] = Field(None, description="New altitude for the specified item with optional units (e.g., '150 feet', '50 meters').")
     
     # Orbit radius (loiter only)
-    radius: Optional[float] = Field(None, description="New radius for orbit/loiter items only. Only works on loiter commands.")
-    radius_units: Optional[str] = Field(None, description="New radius units for orbit updates: 'meters'/'m' or 'feet'/'ft'.")
+    radius: Optional[Union[float, str, tuple]] = Field(None, description="New radius for orbit/loiter items only with optional units (e.g., '500 feet', '100 meters'). Only works on loiter commands.")
+    
+    @field_validator('distance', mode='before')
+    @classmethod
+    def parse_distance_field(cls, v):
+        if v is None:
+            return None
+        parsed_value, units = parse_distance(v)
+        if parsed_value is None:
+            return v  # Let Pydantic handle validation error
+        return (parsed_value, units)
+    
+    @field_validator('altitude', mode='before')
+    @classmethod
+    def parse_altitude_field(cls, v):
+        if v is None:
+            return None
+        parsed_value, units = parse_altitude(v)
+        if parsed_value is None:
+            return v  # Let Pydantic handle validation error
+        return (parsed_value, units)
+    
+    @field_validator('radius', mode='before')
+    @classmethod
+    def parse_radius_field(cls, v):
+        if v is None:
+            return None
+        parsed_value, units = parse_radius(v)
+        if parsed_value is None:
+            return v  # Let Pydantic handle validation error
+        return (parsed_value, units)
     
     # Search parameters
     search_target: Optional[str] = Field(None, description="Target description for AI to search for during this mission item (e.g., 'vehicles', 'people', 'buildings').")
@@ -47,15 +75,31 @@ class UpdateMissionItemTool(PX4ToolBase):
         super().__init__(mission_manager)
     
     def _run(self, seq: int, latitude: Optional[float] = None, longitude: Optional[float] = None, mgrs: Optional[str] = None,
-             distance: Optional[float] = None, heading: Optional[str] = None, distance_units: Optional[str] = None, 
-             relative_reference_frame: Optional[str] = None, altitude: Optional[float] = None, altitude_units: Optional[str] = None, 
-             radius: Optional[float] = None, radius_units: Optional[str] = None,
+             distance: Optional[Union[float, tuple]] = None, heading: Optional[str] = None, 
+             relative_reference_frame: Optional[str] = None, altitude: Optional[Union[float, tuple]] = None, 
+             radius: Optional[Union[float, tuple]] = None,
              search_target: Optional[str] = None, detection_behavior: Optional[str] = None) -> str:
         # Create response
         response = ""
 
         # Populate response
         try:
+            # Parse measurement tuples from validators
+            if isinstance(distance, tuple):
+                distance_value, distance_units = distance
+            else:
+                distance_value, distance_units = distance, 'meters'
+            
+            if isinstance(altitude, tuple):
+                altitude_value, altitude_units = altitude
+            else:
+                altitude_value, altitude_units = altitude, 'meters'
+            
+            if isinstance(radius, tuple):
+                radius_value, radius_units = radius
+            else:
+                radius_value, radius_units = radius, 'meters'
+            
             mission = self.mission_manager.get_mission()
             if not mission or not mission.items:
                 response = "Error: No mission items to update"
@@ -102,22 +146,45 @@ class UpdateMissionItemTool(PX4ToolBase):
                             response = f"Error: Cannot modify MGRS coordinates on item {seq} - {command_type} commands don't support positioning"
                     
                     # Update relative positioning if provided
-                    if distance is not None and heading is not None and not response.startswith("Error:"):
+                    if distance_value is not None and heading is not None and not response.startswith("Error:"):
                         if supports_position:
-                            item.distance = distance
-                            item.heading = heading
-                            if distance_units and hasattr(item, 'distance_units'):
-                                item.distance_units = distance_units
-                            if relative_reference_frame and hasattr(item, 'relative_reference_frame'):
-                                item.relative_reference_frame = relative_reference_frame
-                            # Clear GPS/MGRS when setting relative positioning
-                            if hasattr(item, 'latitude'): item.latitude = None
-                            if hasattr(item, 'longitude'): item.longitude = None
-                            if hasattr(item, 'mgrs'): item.mgrs = None
-                            
-                            units_text = f" {distance_units}" if distance_units else ""
-                            ref_frame = relative_reference_frame or "origin"
-                            changes_made.append(f"position to {distance}{units_text} {heading} from {ref_frame}")
+                            # Handle 'self' reference frame specially
+                            if relative_reference_frame == 'self':
+                                # Validate that item has existing coordinates for self-reference
+                                if not (hasattr(item, 'latitude') and item.latitude is not None and 
+                                       hasattr(item, 'longitude') and item.longitude is not None):
+                                    response = f"Error: Cannot use 'self' reference for item {seq} - item must have existing coordinates first"
+                                else:
+                                    # For 'self' reference, we keep both absolute and relative coordinates
+                                    # The absolute coordinates serve as the reference point
+                                    item.distance = distance_value
+                                    item.heading = heading
+                                    if distance_units and hasattr(item, 'distance_units'):
+                                        item.distance_units = distance_units
+                                    if hasattr(item, 'relative_reference_frame'):
+                                        item.relative_reference_frame = relative_reference_frame
+                                    # Do NOT clear latitude/longitude for 'self' reference
+                                    # Clear MGRS though
+                                    if hasattr(item, 'mgrs'): item.mgrs = None
+                                    
+                                    units_text = f" {distance_units}" if distance_units else ""
+                                    changes_made.append(f"position to {distance_value}{units_text} {heading} from current location")
+                            else:
+                                # Standard relative positioning - clear absolute coordinates
+                                item.distance = distance_value
+                                item.heading = heading
+                                if distance_units and hasattr(item, 'distance_units'):
+                                    item.distance_units = distance_units
+                                if relative_reference_frame and hasattr(item, 'relative_reference_frame'):
+                                    item.relative_reference_frame = relative_reference_frame
+                                # Clear GPS/MGRS when setting relative positioning (except for 'self')
+                                if hasattr(item, 'latitude'): item.latitude = None
+                                if hasattr(item, 'longitude'): item.longitude = None
+                                if hasattr(item, 'mgrs'): item.mgrs = None
+                                
+                                units_text = f" {distance_units}" if distance_units else ""
+                                ref_frame = relative_reference_frame or "origin"
+                                changes_made.append(f"position to {distance_value}{units_text} {heading} from {ref_frame}")
                         else:
                             response = f"Error: Cannot modify relative position on item {seq} - {command_type} commands don't support positioning"
                     
@@ -130,21 +197,21 @@ class UpdateMissionItemTool(PX4ToolBase):
                             response = f"Error: Cannot modify heading on item {seq} - {command_type} commands don't support heading"
                     
                     # Update altitude if provided
-                    if altitude is not None and not response.startswith("Error:"):
+                    if altitude_value is not None and not response.startswith("Error:"):
                         if hasattr(item, 'altitude'):
-                            item.altitude = altitude
+                            item.altitude = altitude_value
                         if altitude_units and hasattr(item, 'altitude_units'):
                             item.altitude_units = altitude_units
-                        changes_made.append(f"altitude to {altitude} {altitude_units or 'meters'}")
+                        changes_made.append(f"altitude to {altitude_value} {altitude_units or 'meters'}")
                     
                     # Update radius if provided (for loiter and survey items)
-                    if radius is not None and not response.startswith("Error:"):
+                    if radius_value is not None and not response.startswith("Error:"):
                         if command_type in ['loiter', 'survey']:
                             if hasattr(item, 'radius'):
-                                item.radius = radius
+                                item.radius = radius_value
                             if radius_units and hasattr(item, 'radius_units'):
                                 item.radius_units = radius_units
-                            changes_made.append(f"radius to {radius} {radius_units or 'meters'}")
+                            changes_made.append(f"radius to {radius_value} {radius_units or 'meters'}")
                         else:
                             response = f"Error: Cannot modify radius on item {seq} - not a loiter/survey command"
                     

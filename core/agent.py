@@ -147,10 +147,10 @@ class PX4Agent:
             new_messages = result.get("messages", [])[len(self.chat_history):]
             self.chat_history.extend(new_messages)
 
-            # Get final mission state  
+            # Get final mission state with automatic coordinate conversion for display
             mission = self.mission_manager.get_mission()
             
-            mission_state = mission.to_dict() if mission else None
+            mission_state = mission.to_dict(convert_to_absolute=True) if mission else None
             
             return {
                 "success": True,
@@ -253,9 +253,9 @@ class PX4Agent:
             else:
                 output = "No AI response found"
 
-            # Get final mission state  
+            # Get final mission state with automatic coordinate conversion for display
             mission = self.mission_manager.get_mission()
-            mission_state = mission.to_dict() if mission else None
+            mission_state = mission.to_dict(convert_to_absolute=True) if mission else None
             
             # Reset for next command (clear mission and chat history)
             self.chat_history = []

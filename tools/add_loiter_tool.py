@@ -2,12 +2,13 @@
 Add Loiter Tool - Create circular orbit/loiter pattern
 """
 
-from typing import Optional
+from typing import Optional, Union
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .tools import PX4ToolBase
 from config.settings import get_agent_settings
+from core.parsing import parse_altitude, parse_distance, parse_radius
 
 # Load agent settings for Field descriptions
 _agent_settings = get_agent_settings()
@@ -21,18 +22,45 @@ class LoiterInput(BaseModel):
     mgrs: Optional[str] = Field(None, description="MGRS coordinate for orbit center. Use ONLY when user provides MGRS coordinates.")
     
     # Relative positioning for orbit center - use for "orbit 2 miles north of here"
-    distance: Optional[float] = Field(None, description="Distance to orbit center from reference point. Use with heading. Can set to 0.0 to oribt AT the reference frame.")
+    distance: Optional[Union[float, str, tuple]] = Field(None, description="Distance to orbit center from reference point with optional units (e.g., '2 miles', '1000 meters', '500 ft'). Use with heading. Can set to 0.0 to orbit AT the reference frame.")
     heading: Optional[str] = Field(None, description="Direction to orbit center: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Use with distance.")
-    distance_units: Optional[str] = Field(None, description="Units for distance: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km'.")
     relative_reference_frame: Optional[str] = Field(None, description="Reference point for distance: 'origin' (takeoff), 'last_waypoint'. You MUST pick one, make an educated guess if using relative positioning. Use 'origin' when user references 'start', 'takeoff', 'here', etc. Otherwise assume last_waypoint.")
     
     # Orbit radius - critical parameter often specified by user
-    radius: Optional[float] = Field(None, description=f"Radius of the circular orbit. Put units in radius_units. Default = {_agent_settings['loiter_default_radius']} {_agent_settings['loiter_radius_units']}")
-    radius_units: Optional[str] = Field(None, description="Units for orbit radius: 'meters'/'m', 'feet'/'ft', 'miles'/'mi', 'kilometers'/'km'.")
+    radius: Optional[Union[float, str, tuple]] = Field(None, description=f"Radius of the circular orbit with optional units (e.g., '500 feet', '100 meters', '0.5 miles'). Default = {_agent_settings['loiter_default_radius']} {_agent_settings['loiter_radius_units']}")
     
     # Optional orbit altitude
-    altitude: Optional[float] = Field(None, description=f"Altitude for the orbit pattern. Specify only if user mentions height. Put units in altitude_units. Default = {_agent_settings['loiter_default_altitude']} {_agent_settings['loiter_altitude_units']}")
-    altitude_units: Optional[str] = Field(None, description="Units for orbit altitude: 'meters'/'m' or 'feet'/'ft'.")
+    altitude: Optional[Union[float, str, tuple]] = Field(None, description=f"Altitude for the orbit pattern with optional units (e.g., '150 feet', '50 meters'). Specify only if user mentions height. Default = {_agent_settings['loiter_default_altitude']} {_agent_settings['loiter_altitude_units']}")
+    
+    @field_validator('distance', mode='before')
+    @classmethod
+    def parse_distance_field(cls, v):
+        if v is None:
+            return None
+        parsed_value, units = parse_distance(v)
+        if parsed_value is None:
+            return v  # Let Pydantic handle validation error
+        return (parsed_value, units)
+    
+    @field_validator('radius', mode='before')
+    @classmethod
+    def parse_radius_field(cls, v):
+        if v is None:
+            return None
+        parsed_value, units = parse_radius(v)
+        if parsed_value is None:
+            return v  # Let Pydantic handle validation error
+        return (parsed_value, units)
+    
+    @field_validator('altitude', mode='before')
+    @classmethod
+    def parse_altitude_field(cls, v):
+        if v is None:
+            return None
+        parsed_value, units = parse_altitude(v)
+        if parsed_value is None:
+            return v  # Let Pydantic handle validation error
+        return (parsed_value, units)
     
     # Insertion position
     insert_at: Optional[int] = Field(None, description="Position to insert loiter in mission. Set to specific position number or omit to add at end.")
@@ -51,22 +79,38 @@ class AddLoiterTool(PX4ToolBase):
         super().__init__(mission_manager)
 
     def _run(self, latitude: Optional[float] = None, longitude: Optional[float] = None, mgrs: Optional[str] = None, 
-             distance: Optional[float] = None, heading: Optional[str] = None, distance_units: Optional[str] = None, 
-             relative_reference_frame: Optional[str] = None, altitude: Optional[float] = None, altitude_units: Optional[str] = None, 
-             radius: Optional[float] = None, radius_units: Optional[str] = None, insert_at: Optional[int] = None,
+             distance: Optional[Union[float, tuple]] = None, heading: Optional[str] = None, 
+             relative_reference_frame: Optional[str] = None, altitude: Optional[Union[float, tuple]] = None, 
+             radius: Optional[Union[float, tuple]] = None, insert_at: Optional[int] = None,
              search_target: Optional[str] = None, detection_behavior: Optional[str] = None) -> str:
         try:
+            # Parse measurement tuples from validators
+            if isinstance(distance, tuple):
+                distance_value, distance_units = distance
+            else:
+                distance_value, distance_units = distance, 'meters'
+            
+            if isinstance(altitude, tuple):
+                altitude_value, altitude_units = altitude
+            else:
+                altitude_value, altitude_units = altitude, 'meters'
+            
+            if isinstance(radius, tuple):
+                radius_value, radius_units = radius
+            else:
+                radius_value, radius_units = radius, 'meters'
+            
             # Save current mission state for potential rollback
             saved_state = self._save_mission_state()
             
             # Build coordinate description following wx-agent pattern
-            coord_desc = self._build_coordinate_description(latitude, longitude, mgrs, distance, heading, distance_units, relative_reference_frame)
+            coord_desc = self._build_coordinate_description(latitude, longitude, mgrs, distance_value, heading, distance_units, relative_reference_frame)
             
             # For mission manager, use lat/lon if provided, otherwise use 0 (no guessing)
             actual_lat = latitude if latitude is not None else 0.0
             actual_lon = longitude if longitude is not None else 0.0
-            actual_alt = altitude if altitude is not None else 0.0
-            actual_radius = radius if radius is not None else 50.0  # Default radius
+            actual_alt = altitude_value if altitude_value is not None else 0.0
+            actual_radius = radius_value if radius_value is not None else 50.0  # Default radius
             
             item = self.mission_manager.add_loiter(
                 actual_lat, actual_lon, actual_alt, actual_radius,
@@ -74,10 +118,10 @@ class AddLoiterTool(PX4ToolBase):
                 insert_at=insert_at,
                 latitude=latitude,
                 longitude=longitude,
-                altitude=altitude,
+                altitude=altitude_value,
                 altitude_units=altitude_units,
                 mgrs=mgrs,
-                distance=distance,
+                distance=distance_value,
                 heading=heading,
                 distance_units=distance_units,
                 relative_reference_frame=relative_reference_frame,
@@ -93,8 +137,8 @@ class AddLoiterTool(PX4ToolBase):
                 return f"Planning Error: {validation_msg}" + self._get_mission_state_summary()
             
             # Build response with preserved units
-            altitude_msg = f"{altitude} {altitude_units}" if altitude is not None else "not specified"
-            radius_msg = f"{radius} {radius_units}" if radius is not None else "not specified"
+            altitude_msg = f"{altitude_value} {altitude_units}" if altitude_value is not None else "not specified"
+            radius_msg = f"{radius_value} {radius_units}" if radius_value is not None else "not specified"
             
             response = f"Loiter command added to mission: {coord_desc}, Alt={altitude_msg}, Radius={radius_msg}, (Item {item.seq + 1})"
             
