@@ -11,7 +11,9 @@ from .settings import (
     get_agent_settings,
     reload_settings,
     update_takeoff_settings,
-    get_current_takeoff_settings
+    get_current_takeoff_settings,
+    update_current_action_settings,
+    get_current_action_settings
 )
 
 __all__ = [
@@ -23,5 +25,7 @@ __all__ = [
     'get_agent_settings',
     'reload_settings',
     'update_takeoff_settings',
-    'get_current_takeoff_settings'
+    'get_current_takeoff_settings',
+    'update_current_action_settings',
+    'get_current_action_settings'
 ]

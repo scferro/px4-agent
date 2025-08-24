@@ -17,6 +17,7 @@ class MissionManager:
     
     def __init__(self, mode: str = "mission"):
         self.current_mission: Optional[Mission] = None
+        self.current_action: Optional[MissionItem] = None  # For command mode
         self.mode = mode
         self.validator = MissionValidator(get_settings())
     
@@ -237,7 +238,7 @@ class MissionManager:
         
         mission = self.get_mission()
         mission_state = {
-            "total_items": len(mission.items)
+            "total_mission_items": len(mission.items)
         }
 
         if mission and mission.items:
@@ -290,6 +291,104 @@ class MissionManager:
                 
                 items[f"item_{i+1}"] = item_data
             
-            mission_state["items"] = items
+            mission_state["mission_state"] = items
         
         return "\n\n" + json.dumps(mission_state, indent=2)
+    
+    def set_current_action(self, action: MissionItem) -> None:
+        """Set current action for command mode (no RTL allowed)"""
+        if getattr(action, 'command_type', None) == 'rtl':
+            raise ValueError("RTL commands are not allowed as current action")
+        
+        # Validate command type
+        allowed_types = ['takeoff', 'waypoint', 'loiter', 'survey']
+        command_type = getattr(action, 'command_type', None)
+        if command_type not in allowed_types:
+            raise ValueError(f"Invalid command type '{command_type}'. Allowed types: {', '.join(allowed_types)}")
+        
+        self.current_action = action
+    
+    def get_current_action(self) -> Optional[MissionItem]:
+        """Get current action for command mode"""
+        return self.current_action
+    
+    def get_current_action_summary(self) -> str:
+        """Get brief summary of current action in JSON format"""
+        if not self.current_action:
+            return "\n\n{\"current_action\": null}"
+        
+        action = self.current_action
+        command_type = getattr(action, 'command_type', 'unknown')
+        
+        action_data = {
+            "type": command_type
+        }
+        
+        # Add key parameters
+        if (hasattr(action, 'altitude') and action.altitude is not None) or (hasattr(action, 'altitude_units') and action.altitude_units is not None):
+            altitude_val = action.altitude if action.altitude is not None else "(altitude)"
+            alt_units = action.altitude_units if action.altitude_units is not None else "(altitude_units)"
+            action_data["altitude"] = f"{altitude_val} {alt_units}"
+        
+        # Show radius if either radius or radius_units is specified
+        if (hasattr(action, 'radius') and action.radius is not None) or (hasattr(action, 'radius_units') and action.radius_units is not None):
+            radius_val = action.radius if action.radius is not None else "(radius)"
+            radius_units = action.radius_units if action.radius_units is not None else "(radius_units)"
+            action_data["radius"] = f"{radius_val} {radius_units}"
+        
+        # Add position info
+        if (hasattr(action, 'latitude') and action.latitude is not None) and (hasattr(action, 'longitude') and action.longitude is not None):
+            lat_val = f"{action.latitude:.6f}"
+            lon_val = f"{action.longitude:.6f}"
+            action_data["position"] = f"lat/lon ({lat_val}, {lon_val})"
+        elif hasattr(action, 'mgrs') and action.mgrs is not None:
+            action_data["position"] = f"MGRS {action.mgrs}"
+        elif (hasattr(action, 'distance') and action.distance is not None) or (hasattr(action, 'heading') and action.heading is not None and action.command_type != 'takeoff') or (hasattr(action, 'distance_units') and action.distance_units is not None) or (hasattr(action, 'relative_reference_frame') and action.relative_reference_frame is not None):
+            distance = action.distance if action.distance is not None else "(distance)"
+            dist_units = action.distance_units if action.distance_units is not None else "(distance_units)"
+            heading = action.heading if action.heading is not None else "(heading)"
+            ref_frame = action.relative_reference_frame if action.relative_reference_frame is not None else "(relative_reference_frame)"
+            action_data["position"] = f"{distance} {dist_units} {heading} from {ref_frame}"
+        
+        # Always show heading for takeoff commands (VTOL transition direction)
+        if action.command_type == 'takeoff' and hasattr(action, 'heading') and action.heading is not None:
+            action_data["heading"] = action.heading
+        
+        # Show search parameters if any are specified
+        if ((hasattr(action, 'search_target') and action.search_target is not None) or (hasattr(action, 'detection_behavior') and action.detection_behavior is not None)):
+            search_target = action.search_target if action.search_target is not None else "(search_target)"
+            detection_behavior = action.detection_behavior if action.detection_behavior is not None else "(detection_behavior)"
+            action_data["search"] = f"target={search_target}, behavior={detection_behavior}"
+        
+        current_action_state = {
+            "current_action": action_data
+        }
+        
+        return "\n\n" + json.dumps(current_action_state, indent=2)
+    
+    def initialize_current_action_from_settings(self) -> None:
+        """Initialize current action from configuration settings"""
+        from config import get_current_action_settings
+        from core.mission import MissionItem
+        
+        settings = get_current_action_settings()
+        
+        # Create MissionItem from settings (seq=0 for current action)
+        kwargs = {
+            'seq': 0,  # Current action doesn't need sequence number
+            'command_type': settings['type'],
+            'latitude': settings['latitude'],
+            'longitude': settings['longitude'],
+            'altitude': settings['altitude'],
+            'altitude_units': settings['altitude_units'],
+            'radius': settings['radius'],
+            'radius_units': settings['radius_units']
+        }
+        
+        # Only add heading if it's not empty
+        if settings['heading']:
+            kwargs['heading'] = settings['heading']
+        
+        action = MissionItem(**kwargs)
+        
+        self.set_current_action(action)

@@ -37,23 +37,24 @@
                 </div>
             </div>
 
-            <div class="settings-panel" id="settingsPanel">
-                <div class="settings-header" id="settingsHeader">
+            <!-- Takeoff Settings Panel (Mission Mode) -->
+            <div class="settings-panel" id="takeoffSettingsPanel">
+                <div class="settings-header" id="takeoffSettingsHeader">
                     <div class="header-content">
                         <h3>🎯 Takeoff Settings</h3>
-                        <div class="collapsed-info" id="collapsedInfo">Loading...</div>
+                        <div class="collapsed-info" id="takeoffCollapsedInfo">Loading...</div>
                     </div>
-                    <button class="toggle-btn" id="settingsToggle">▶</button>
+                    <button class="toggle-btn" id="takeoffSettingsToggle">▶</button>
                 </div>
-                <div class="settings-content collapsed" id="settingsContent">
-                    <div class="current-settings" id="currentSettings">
+                <div class="settings-content collapsed" id="takeoffSettingsContent">
+                    <div class="current-settings" id="takeoffCurrentSettings">
                         <div class="current-value">Current: Loading...</div>
                     </div>
                     <div class="settings-form">
                         <div class="form-row">
                             <input 
                                 type="number" 
-                                id="latitudeInput" 
+                                id="takeoffLatitudeInput" 
                                 placeholder="Latitude" 
                                 step="0.000001" 
                                 min="-90" 
@@ -62,7 +63,7 @@
                             >
                             <input 
                                 type="number" 
-                                id="longitudeInput" 
+                                id="takeoffLongitudeInput" 
                                 placeholder="Longitude" 
                                 step="0.000001" 
                                 min="-180" 
@@ -71,7 +72,7 @@
                             >
                         </div>
                         <div class="form-row">
-                            <select id="headingInput" class="heading-input">
+                            <select id="takeoffHeadingInput" class="heading-input">
                                 <option value="">Select heading...</option>
                                 <option value="north">North</option>
                                 <option value="northeast">Northeast</option>
@@ -86,6 +87,99 @@
                         </div>
                         <div class="form-help">
                             Set custom takeoff location and heading. Empty fields will use current values.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Action Panel (Command Mode) -->
+            <div class="settings-panel" id="currentActionPanel" style="display: none;">
+                <div class="settings-header" id="currentActionHeader">
+                    <div class="header-content">
+                        <h3>⚡ Current Action</h3>
+                        <div class="collapsed-info" id="actionCollapsedInfo">Loading...</div>
+                    </div>
+                    <button class="toggle-btn" id="currentActionToggle">▶</button>
+                </div>
+                <div class="settings-content collapsed" id="currentActionContent">
+                    <div class="current-settings" id="actionCurrentSettings">
+                        <div class="current-value">Current: Loading...</div>
+                    </div>
+                    <div class="settings-form">
+                        <div class="form-row">
+                            <select id="actionTypeInput" class="action-type-input">
+                                <option value="takeoff">Takeoff</option>
+                                <option value="waypoint">Waypoint</option>
+                                <option value="loiter">Loiter</option>
+                                <option value="survey">Survey</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <input 
+                                type="number" 
+                                id="actionLatitudeInput" 
+                                placeholder="Latitude" 
+                                step="0.000001" 
+                                min="-90" 
+                                max="90"
+                                class="coord-input"
+                            >
+                            <input 
+                                type="number" 
+                                id="actionLongitudeInput" 
+                                placeholder="Longitude" 
+                                step="0.000001" 
+                                min="-180" 
+                                max="180"
+                                class="coord-input"
+                            >
+                        </div>
+                        <div class="form-row">
+                            <input 
+                                type="number" 
+                                id="actionAltitudeInput" 
+                                placeholder="Altitude" 
+                                step="1" 
+                                min="0"
+                                class="param-input"
+                            >
+                            <select id="actionAltitudeUnitsInput" class="units-input">
+                                <option value="feet">feet</option>
+                                <option value="meters">meters</option>
+                            </select>
+                        </div>
+                        <div class="form-row" id="radiusRow" style="display: none;">
+                            <input 
+                                type="number" 
+                                id="actionRadiusInput" 
+                                placeholder="Radius" 
+                                step="1" 
+                                min="0"
+                                class="param-input"
+                            >
+                            <select id="actionRadiusUnitsInput" class="units-input">
+                                <option value="feet">feet</option>
+                                <option value="meters">meters</option>
+                            </select>
+                        </div>
+                        <div class="form-row" id="headingRow">
+                            <select id="actionHeadingInput" class="heading-input">
+                                <option value="">Select heading...</option>
+                                <option value="north">North</option>
+                                <option value="northeast">Northeast</option>
+                                <option value="east">East</option>
+                                <option value="southeast">Southeast</option>
+                                <option value="south">South</option>
+                                <option value="southwest">Southwest</option>
+                                <option value="west">West</option>
+                                <option value="northwest">Northwest</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <button id="setCurrentActionBtn" class="set-btn" disabled>Set Action</button>
+                        </div>
+                        <div class="form-help">
+                            Configure the default action type and parameters for command mode.
                         </div>
                     </div>
                 </div>

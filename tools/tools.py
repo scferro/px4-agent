@@ -170,8 +170,6 @@ def get_command_tools(mission_manager: MissionManager) -> list:
         AddSurveyTool(mission_manager),
         AddRTLTool(mission_manager),
         AddLoiterTool(mission_manager),
-        UpdateMissionItemTool(mission_manager),
-        MoveItemTool(mission_manager),
     ]
 
 def get_mission_tools(mission_manager: MissionManager) -> list:

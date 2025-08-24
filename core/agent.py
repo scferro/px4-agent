@@ -204,12 +204,15 @@ class PX4Agent:
         self.chat_history = []
         self.mission_manager.create_mission()
         
+        # Initialize current action from settings
+        self.mission_manager.initialize_current_action_from_settings()
+        
         system_prompt = get_system_prompt("command")
         
         try:
-            # Append current mission state to user message for context
-            mission_state_summary = self.mission_manager.get_mission_state_summary()
-            enhanced_user_input = f"{user_input}{mission_state_summary}"
+            # Append current action state to user message for context in command mode
+            current_action_summary = self.mission_manager.get_current_action_summary()
+            enhanced_user_input = f"{user_input}{current_action_summary}"
             
             # LangGraph uses messages instead of system_prompt/input format
             messages = [

@@ -36,16 +36,36 @@ class PX4AgentClient {
             // Mission state elements
             missionItems: document.getElementById('missionItems'),
             
-            // Settings elements
-            settingsHeader: document.getElementById('settingsHeader'),
-            settingsToggle: document.getElementById('settingsToggle'),
-            settingsContent: document.getElementById('settingsContent'),
-            collapsedInfo: document.getElementById('collapsedInfo'),
-            currentSettings: document.getElementById('currentSettings'),
-            latitudeInput: document.getElementById('latitudeInput'),
-            longitudeInput: document.getElementById('longitudeInput'),
-            headingInput: document.getElementById('headingInput'),
+            // Takeoff Settings elements (Mission Mode)
+            takeoffSettingsPanel: document.getElementById('takeoffSettingsPanel'),
+            takeoffSettingsHeader: document.getElementById('takeoffSettingsHeader'),
+            takeoffSettingsToggle: document.getElementById('takeoffSettingsToggle'),
+            takeoffSettingsContent: document.getElementById('takeoffSettingsContent'),
+            takeoffCollapsedInfo: document.getElementById('takeoffCollapsedInfo'),
+            takeoffCurrentSettings: document.getElementById('takeoffCurrentSettings'),
+            takeoffLatitudeInput: document.getElementById('takeoffLatitudeInput'),
+            takeoffLongitudeInput: document.getElementById('takeoffLongitudeInput'),
+            takeoffHeadingInput: document.getElementById('takeoffHeadingInput'),
             setTakeoffBtn: document.getElementById('setTakeoffBtn'),
+            
+            // Current Action elements (Command Mode)
+            currentActionPanel: document.getElementById('currentActionPanel'),
+            currentActionHeader: document.getElementById('currentActionHeader'),
+            currentActionToggle: document.getElementById('currentActionToggle'),
+            currentActionContent: document.getElementById('currentActionContent'),
+            actionCollapsedInfo: document.getElementById('actionCollapsedInfo'),
+            actionCurrentSettings: document.getElementById('actionCurrentSettings'),
+            actionTypeInput: document.getElementById('actionTypeInput'),
+            actionLatitudeInput: document.getElementById('actionLatitudeInput'),
+            actionLongitudeInput: document.getElementById('actionLongitudeInput'),
+            actionAltitudeInput: document.getElementById('actionAltitudeInput'),
+            actionAltitudeUnitsInput: document.getElementById('actionAltitudeUnitsInput'),
+            actionRadiusInput: document.getElementById('actionRadiusInput'),
+            actionRadiusUnitsInput: document.getElementById('actionRadiusUnitsInput'),
+            actionHeadingInput: document.getElementById('actionHeadingInput'),
+            setCurrentActionBtn: document.getElementById('setCurrentActionBtn'),
+            radiusRow: document.getElementById('radiusRow'),
+            headingRow: document.getElementById('headingRow'),
             
             // Loading elements
             loadingOverlay: document.getElementById('loadingOverlay')
@@ -65,13 +85,26 @@ class PX4AgentClient {
         
         this.elements.sendButton.addEventListener('click', () => this.sendMessage());
         
-        // Settings panel handling
-        this.elements.settingsHeader.addEventListener('click', () => this.toggleSettings());
+        // Takeoff Settings panel handling (Mission Mode)
+        this.elements.takeoffSettingsHeader.addEventListener('click', () => this.toggleTakeoffSettings());
         this.elements.setTakeoffBtn.addEventListener('click', () => this.updateTakeoffSettings());
         
-        // Settings input validation
-        [this.elements.latitudeInput, this.elements.longitudeInput, this.elements.headingInput].forEach(input => {
-            input.addEventListener('input', () => this.validateSettingsForm());
+        // Takeoff settings input validation
+        [this.elements.takeoffLatitudeInput, this.elements.takeoffLongitudeInput, this.elements.takeoffHeadingInput].forEach(input => {
+            input.addEventListener('input', () => this.validateTakeoffSettingsForm());
+        });
+        
+        // Current Action panel handling (Command Mode)
+        this.elements.currentActionHeader.addEventListener('click', () => this.toggleCurrentActionSettings());
+        this.elements.setCurrentActionBtn.addEventListener('click', () => this.updateCurrentActionSettings());
+        
+        // Action type change handler for dynamic fields
+        this.elements.actionTypeInput.addEventListener('change', () => this.updateActionTypeFields());
+        
+        // Current action input validation
+        [this.elements.actionLatitudeInput, this.elements.actionLongitudeInput, this.elements.actionAltitudeInput, 
+         this.elements.actionRadiusInput, this.elements.actionHeadingInput].forEach(input => {
+            input.addEventListener('input', () => this.validateCurrentActionForm());
         });
         
         // Initial state
@@ -116,6 +149,17 @@ class PX4AgentClient {
         // Update descriptions
         this.elements.missionDesc.classList.toggle('active', mode === 'mission');
         this.elements.commandDesc.classList.toggle('active', mode === 'command');
+        
+        // Switch settings panels based on mode
+        if (mode === 'mission') {
+            // Show takeoff settings panel, hide current action panel
+            this.elements.takeoffSettingsPanel.style.display = 'block';
+            this.elements.currentActionPanel.style.display = 'none';
+        } else {
+            // Show current action panel, hide takeoff settings panel
+            this.elements.takeoffSettingsPanel.style.display = 'none';
+            this.elements.currentActionPanel.style.display = 'block';
+        }
         
         // Clear chat and mission state when switching modes
         this.clearChat();
@@ -359,9 +403,24 @@ class PX4AgentClient {
         }
     }
     
-    toggleSettings() {
-        const content = this.elements.settingsContent;
-        const toggle = this.elements.settingsToggle;
+    toggleTakeoffSettings() {
+        const content = this.elements.takeoffSettingsContent;
+        const toggle = this.elements.takeoffSettingsToggle;
+        
+        if (content.classList.contains('collapsed')) {
+            content.classList.remove('collapsed');
+            toggle.classList.remove('collapsed');
+            toggle.textContent = '▼';
+        } else {
+            content.classList.add('collapsed');
+            toggle.classList.add('collapsed');
+            toggle.textContent = '▶';
+        }
+    }
+    
+    toggleCurrentActionSettings() {
+        const content = this.elements.currentActionContent;
+        const toggle = this.elements.currentActionToggle;
         
         if (content.classList.contains('collapsed')) {
             content.classList.remove('collapsed');
@@ -375,6 +434,12 @@ class PX4AgentClient {
     }
     
     async loadCurrentSettings() {
+        // Load both takeoff settings and current action settings
+        await this.loadTakeoffSettings();
+        await this.loadCurrentActionSettings();
+    }
+    
+    async loadTakeoffSettings() {
         try {
             const response = await fetch(`${this.baseUrl}/api/settings/takeoff`);
             const result = await response.json();
@@ -384,33 +449,79 @@ class PX4AgentClient {
                 const displayText = `${settings.latitude.toFixed(6)}, ${settings.longitude.toFixed(6)}, ${settings.heading}`;
                 
                 // Update expanded current settings display
-                this.elements.currentSettings.innerHTML = `
+                this.elements.takeoffCurrentSettings.innerHTML = `
                     <div class="current-value">
                         Current: ${displayText}
                     </div>
                 `;
                 
                 // Update collapsed info display
-                this.elements.collapsedInfo.textContent = displayText;
+                this.elements.takeoffCollapsedInfo.textContent = displayText;
             } else {
-                this.elements.currentSettings.innerHTML = `
-                    <div class="current-value">Failed to load current settings</div>
+                this.elements.takeoffCurrentSettings.innerHTML = `
+                    <div class="current-value">Failed to load takeoff settings</div>
                 `;
-                this.elements.collapsedInfo.textContent = 'Failed to load';
+                this.elements.takeoffCollapsedInfo.textContent = 'Failed to load';
             }
         } catch (error) {
-            console.error('Failed to load settings:', error);
-            this.elements.currentSettings.innerHTML = `
+            console.error('Failed to load takeoff settings:', error);
+            this.elements.takeoffCurrentSettings.innerHTML = `
                 <div class="current-value">Error loading settings</div>
             `;
-            this.elements.collapsedInfo.textContent = 'Error loading';
+            this.elements.takeoffCollapsedInfo.textContent = 'Error loading';
         }
     }
     
-    validateSettingsForm() {
-        const lat = this.elements.latitudeInput.value.trim();
-        const lon = this.elements.longitudeInput.value.trim();
-        const heading = this.elements.headingInput.value.trim();
+    async loadCurrentActionSettings() {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/settings/current-action`);
+            const result = await response.json();
+            
+            if (result.success) {
+                const settings = result.settings;
+                const displayText = `${settings.type}: ${settings.latitude.toFixed(6)}, ${settings.longitude.toFixed(6)}, ${settings.altitude} ${settings.altitude_units}`;
+                
+                // Update expanded current settings display
+                this.elements.actionCurrentSettings.innerHTML = `
+                    <div class="current-value">
+                        Current: ${displayText}
+                    </div>
+                `;
+                
+                // Update collapsed info display
+                this.elements.actionCollapsedInfo.textContent = displayText;
+                
+                // Update form fields with current values
+                this.elements.actionTypeInput.value = settings.type;
+                this.elements.actionLatitudeInput.value = settings.latitude;
+                this.elements.actionLongitudeInput.value = settings.longitude;
+                this.elements.actionAltitudeInput.value = settings.altitude;
+                this.elements.actionAltitudeUnitsInput.value = settings.altitude_units;
+                this.elements.actionRadiusInput.value = settings.radius;
+                this.elements.actionRadiusUnitsInput.value = settings.radius_units;
+                this.elements.actionHeadingInput.value = settings.heading || '';
+                
+                this.updateActionTypeFields(); // Update visibility based on type
+                
+            } else {
+                this.elements.actionCurrentSettings.innerHTML = `
+                    <div class="current-value">Failed to load current action settings</div>
+                `;
+                this.elements.actionCollapsedInfo.textContent = 'Failed to load';
+            }
+        } catch (error) {
+            console.error('Failed to load current action settings:', error);
+            this.elements.actionCurrentSettings.innerHTML = `
+                <div class="current-value">Error loading settings</div>
+            `;
+            this.elements.actionCollapsedInfo.textContent = 'Error loading';
+        }
+    }
+    
+    validateTakeoffSettingsForm() {
+        const lat = this.elements.takeoffLatitudeInput.value.trim();
+        const lon = this.elements.takeoffLongitudeInput.value.trim();
+        const heading = this.elements.takeoffHeadingInput.value.trim();
         
         // Check if individual fields are valid when filled
         const latValid = !lat || (!isNaN(lat) && lat >= -90 && lat <= 90);
@@ -423,21 +534,115 @@ class PX4AgentClient {
         // All filled fields must be valid AND at least one field must have content
         const formValid = latValid && lonValid && headingValid && hasContent;
         this.elements.setTakeoffBtn.disabled = !formValid;
+    }
+    
+    validateCurrentActionForm() {
+        const lat = this.elements.actionLatitudeInput.value.trim();
+        const lon = this.elements.actionLongitudeInput.value.trim();
+        const alt = this.elements.actionAltitudeInput.value.trim();
+        const radius = this.elements.actionRadiusInput.value.trim();
+        
+        // Check if individual fields are valid when filled
+        const latValid = !lat || (!isNaN(lat) && lat >= -90 && lat <= 90);
+        const lonValid = !lon || (!isNaN(lon) && lon >= -180 && lon <= 180);
+        const altValid = !alt || (!isNaN(alt) && alt > 0);
+        const radiusValid = !radius || (!isNaN(radius) && radius > 0);
+        
+        // Check if at least one field has content
+        const hasContent = lat || lon || alt || radius;
+        
+        // All filled fields must be valid AND at least one field must have content
+        const formValid = latValid && lonValid && altValid && radiusValid && hasContent;
+        this.elements.setCurrentActionBtn.disabled = !formValid;
         
         return formValid;
     }
     
+    updateActionTypeFields() {
+        const actionType = this.elements.actionTypeInput.value;
+        
+        // Show/hide radius field based on action type
+        if (actionType === 'loiter' || actionType === 'survey') {
+            this.elements.radiusRow.style.display = 'flex';
+        } else {
+            this.elements.radiusRow.style.display = 'none';
+        }
+        
+        // Show heading only for takeoff (VTOL transition direction)
+        if (actionType === 'takeoff') {
+            this.elements.headingRow.style.display = 'flex';
+        } else {
+            this.elements.headingRow.style.display = 'none';
+        }
+    }
+    
+    async updateCurrentActionSettings() {
+        const actionType = this.elements.actionTypeInput.value;
+        const latitude = this.elements.actionLatitudeInput.value.trim();
+        const longitude = this.elements.actionLongitudeInput.value.trim(); 
+        const altitude = this.elements.actionAltitudeInput.value.trim();
+        const altitudeUnits = this.elements.actionAltitudeUnitsInput.value;
+        const radius = this.elements.actionRadiusInput.value.trim();
+        const radiusUnits = this.elements.actionRadiusUnitsInput.value;
+        const heading = this.elements.actionHeadingInput.value;
+        
+        const requestData = {};
+        
+        // Always include action type
+        requestData.type = actionType;
+        
+        // Add other fields only if they have values
+        if (latitude) requestData.latitude = parseFloat(latitude);
+        if (longitude) requestData.longitude = parseFloat(longitude);
+        if (altitude) requestData.altitude = parseFloat(altitude);
+        if (altitudeUnits) requestData.altitude_units = altitudeUnits;
+        if (radius) requestData.radius = parseFloat(radius);
+        if (radiusUnits) requestData.radius_units = radiusUnits;
+        if (heading) requestData.heading = heading;
+        
+        try {
+            const response = await fetch(`${this.baseUrl}/api/settings/current-action`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Clear form inputs
+                this.elements.actionLatitudeInput.value = '';
+                this.elements.actionLongitudeInput.value = '';
+                this.elements.actionAltitudeInput.value = '';
+                this.elements.actionRadiusInput.value = '';
+                this.elements.actionHeadingInput.value = '';
+                
+                // Reload settings to show updated values
+                this.loadCurrentActionSettings();
+                
+                this.addMessage('agent', `Current action updated: ${result.message}`);
+            } else {
+                this.addMessage('agent', `Failed to update current action: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Error updating current action settings:', error);
+            this.addMessage('agent', 'Error updating current action settings');
+        }
+    }
+    
     async updateTakeoffSettings() {
-        if (!this.validateSettingsForm()) {
+        if (!this.validateTakeoffSettingsForm()) {
             this.addMessage('error', 'Please provide at least one valid field.');
             return;
         }
         
         // Build request with only filled fields
         const requestData = {};
-        const lat = this.elements.latitudeInput.value.trim();
-        const lon = this.elements.longitudeInput.value.trim();
-        const heading = this.elements.headingInput.value.trim();
+        const lat = this.elements.takeoffLatitudeInput.value.trim();
+        const lon = this.elements.takeoffLongitudeInput.value.trim();
+        const heading = this.elements.takeoffHeadingInput.value.trim();
         
         if (lat) requestData.latitude = parseFloat(lat);
         if (lon) requestData.longitude = parseFloat(lon);
@@ -467,12 +672,12 @@ class PX4AgentClient {
                 this.addMessage('agent', `✅ Takeoff settings updated: ${updatedFields.join(', ')}`);
                 
                 // Clear form
-                this.elements.latitudeInput.value = '';
-                this.elements.longitudeInput.value = '';
-                this.elements.headingInput.value = '';
+                this.elements.takeoffLatitudeInput.value = '';
+                this.elements.takeoffLongitudeInput.value = '';
+                this.elements.takeoffHeadingInput.value = '';
                 
                 // Reload current settings display
-                this.loadCurrentSettings();
+                this.loadTakeoffSettings();
                 
             } else {
                 this.addMessage('error', `Failed to update settings: ${result.error}`);
@@ -484,7 +689,7 @@ class PX4AgentClient {
         } finally {
             this.elements.setTakeoffBtn.disabled = false;
             this.elements.setTakeoffBtn.textContent = 'Set Location';
-            this.validateSettingsForm();
+            this.validateTakeoffSettingsForm();
         }
     }
 }

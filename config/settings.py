@@ -30,7 +30,17 @@ class AgentConfig:
 
     # Initial takeoff location must be defined to start mission
     takeoff_initial_latitude: float = 0.0  
-    takeoff_initial_longitude: float = 0.0  
+    takeoff_initial_longitude: float = 0.0
+    
+    # === CURRENT ACTION PARAMETERS (for command mode) ===
+    current_action_type: str = "takeoff"
+    current_action_latitude: float = 0.0
+    current_action_longitude: float = 0.0
+    current_action_altitude: float = 150.0
+    current_action_altitude_units: str = "feet"
+    current_action_radius: float = 400.0  # For loiter/survey
+    current_action_radius_units: str = "feet"
+    current_action_heading: str = ""  # For takeoff VTOL direction  
     
     # Mission structure validation
     single_takeoff_only: bool = False
@@ -218,4 +228,49 @@ def get_current_takeoff_settings() -> Dict[str, Any]:
         "latitude": settings.agent.takeoff_initial_latitude,
         "longitude": settings.agent.takeoff_initial_longitude,
         "heading": settings.agent.takeoff_default_heading
+    }
+
+def update_current_action_settings(action_type: str, latitude: float = None, longitude: float = None, 
+                                 altitude: float = None, altitude_units: str = None,
+                                 radius: float = None, radius_units: str = None, 
+                                 heading: str = None):
+    """Update current action settings at runtime"""
+    global _settings
+    if _settings is None:
+        _settings = load_settings()
+    
+    # Validate action type
+    allowed_types = ['takeoff', 'waypoint', 'loiter', 'survey']
+    if action_type not in allowed_types:
+        raise ValueError(f"Invalid action type '{action_type}'. Allowed types: {', '.join(allowed_types)}")
+    
+    # Update provided fields
+    _settings.agent.current_action_type = action_type
+    if latitude is not None:
+        _settings.agent.current_action_latitude = latitude
+    if longitude is not None:
+        _settings.agent.current_action_longitude = longitude
+    if altitude is not None:
+        _settings.agent.current_action_altitude = altitude
+    if altitude_units is not None:
+        _settings.agent.current_action_altitude_units = altitude_units
+    if radius is not None:
+        _settings.agent.current_action_radius = radius
+    if radius_units is not None:
+        _settings.agent.current_action_radius_units = radius_units
+    if heading is not None:
+        _settings.agent.current_action_heading = heading
+
+def get_current_action_settings() -> Dict[str, Any]:
+    """Get current action settings"""
+    settings = get_settings()
+    return {
+        "type": settings.agent.current_action_type,
+        "latitude": settings.agent.current_action_latitude,
+        "longitude": settings.agent.current_action_longitude,
+        "altitude": settings.agent.current_action_altitude,
+        "altitude_units": settings.agent.current_action_altitude_units,
+        "radius": settings.agent.current_action_radius,
+        "radius_units": settings.agent.current_action_radius_units,
+        "heading": settings.agent.current_action_heading
     }

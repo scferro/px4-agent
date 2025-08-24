@@ -14,7 +14,7 @@ import traceback
 import logging
 
 from core import PX4Agent
-from config import get_settings, reload_settings, update_takeoff_settings, get_current_takeoff_settings
+from config import get_settings, reload_settings, update_takeoff_settings, get_current_takeoff_settings, update_current_action_settings, get_current_action_settings
 
 
 class PX4AgentServer:
@@ -315,6 +315,124 @@ class PX4AgentServer:
                     "settings": {
                         "latitude": latitude,
                         "longitude": longitude,
+                        "heading": heading
+                    }
+                })
+                
+            except ValueError as e:
+                return jsonify({
+                    "success": False,
+                    "error": str(e)
+                }), 400
+            except Exception as e:
+                return jsonify({
+                    "success": False,
+                    "error": f"Failed to update settings: {str(e)}"
+                }), 500
+        
+        @self.app.route('/api/settings/current-action', methods=['GET'])
+        def get_current_action_settings_endpoint():
+            """Get current action settings"""
+            try:
+                settings = get_current_action_settings()
+                return jsonify({
+                    "success": True,
+                    "settings": settings
+                })
+            except Exception as e:
+                return jsonify({
+                    "success": False,
+                    "error": str(e)
+                }), 500
+        
+        @self.app.route('/api/settings/current-action', methods=['POST'])
+        def update_current_action_settings_endpoint():
+            """Update current action settings at runtime"""
+            try:
+                data = request.get_json()
+                if not data:
+                    return jsonify({
+                        "success": False,
+                        "error": "No data provided"
+                    }), 400
+                
+                # Check if at least action type or one field is provided
+                valid_fields = ['type', 'latitude', 'longitude', 'altitude', 'altitude_units', 'radius', 'radius_units', 'heading']
+                provided_fields = [field for field in valid_fields if field in data]
+                if not provided_fields:
+                    return jsonify({
+                        "success": False,
+                        "error": f"At least one field must be provided: {', '.join(valid_fields)}"
+                    }), 400
+                
+                # Get current settings first
+                current_settings = get_current_action_settings()
+                
+                # Extract and validate provided fields
+                action_type = current_settings['type']
+                latitude = current_settings['latitude']
+                longitude = current_settings['longitude']
+                altitude = current_settings['altitude']
+                altitude_units = current_settings['altitude_units']
+                radius = current_settings['radius']
+                radius_units = current_settings['radius_units']
+                heading = current_settings['heading']
+                
+                try:
+                    if 'type' in data:
+                        action_type = str(data['type']).strip()
+                        # Validate action type
+                        allowed_types = ['takeoff', 'waypoint', 'loiter', 'survey']
+                        if action_type not in allowed_types:
+                            return jsonify({
+                                "success": False,
+                                "error": f"Invalid action type '{action_type}'. Allowed types: {', '.join(allowed_types)}"
+                            }), 400
+                    
+                    if 'latitude' in data:
+                        latitude = float(data['latitude'])
+                    if 'longitude' in data:
+                        longitude = float(data['longitude'])
+                    if 'altitude' in data:
+                        altitude = float(data['altitude'])
+                    if 'altitude_units' in data:
+                        altitude_units = str(data['altitude_units']).strip()
+                    if 'radius' in data:
+                        radius = float(data['radius'])
+                    if 'radius_units' in data:
+                        radius_units = str(data['radius_units']).strip()
+                    if 'heading' in data:
+                        heading = str(data['heading']).strip()
+                        
+                except (ValueError, TypeError) as e:
+                    return jsonify({
+                        "success": False,
+                        "error": f"Invalid data format: {str(e)}"
+                    }), 400
+                
+                # Update settings with merged values
+                update_current_action_settings(
+                    action_type=action_type,
+                    latitude=latitude,
+                    longitude=longitude,
+                    altitude=altitude,
+                    altitude_units=altitude_units,
+                    radius=radius,
+                    radius_units=radius_units,
+                    heading=heading
+                )
+                
+                return jsonify({
+                    "success": True,
+                    "message": "Current action settings updated successfully",
+                    "settings": {
+                        "type": action_type,
+                        "latitude": latitude,
+                        "longitude": longitude,
+                        "altitude": altitude,
+                        "altitude_units": altitude_units,
+                        "radius": radius,
+                        "radius_units": radius_units,
                         "heading": heading
                     }
                 })
