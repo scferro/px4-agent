@@ -162,6 +162,7 @@ def get_command_tools(mission_manager: MissionManager) -> list:
     from .add_loiter_tool import AddLoiterTool
     from .add_survey_tool import AddSurveyTool
     from .update_mission_item_tool import UpdateMissionItemTool
+    from .move_item_tool import MoveItemTool
     
     return [
         AddWaypointTool(mission_manager),
@@ -170,6 +171,7 @@ def get_command_tools(mission_manager: MissionManager) -> list:
         AddRTLTool(mission_manager),
         AddLoiterTool(mission_manager),
         UpdateMissionItemTool(mission_manager),
+        MoveItemTool(mission_manager),
     ]
 
 def get_mission_tools(mission_manager: MissionManager) -> list:
@@ -181,7 +183,8 @@ def get_mission_tools(mission_manager: MissionManager) -> list:
     from .add_survey_tool import AddSurveyTool
     from .update_mission_item_tool import UpdateMissionItemTool
     from .delete_mission_item_tool import DeleteMissionItemTool
-    from .move_mission_item_tool import MoveMissionItemTool
+    from .reorder_item_tool import ReorderItemTool
+    from .move_item_tool import MoveItemTool
     
     return [
         AddWaypointTool(mission_manager),
@@ -191,7 +194,8 @@ def get_mission_tools(mission_manager: MissionManager) -> list:
         AddLoiterTool(mission_manager),
         UpdateMissionItemTool(mission_manager),
         DeleteMissionItemTool(mission_manager),
-        MoveMissionItemTool(mission_manager),
+        ReorderItemTool(mission_manager),
+        MoveItemTool(mission_manager),
     ]
 
 def get_tools_for_mode(mission_manager: MissionManager, mode: str) -> list:

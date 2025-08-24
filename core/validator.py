@@ -50,6 +50,10 @@ class MissionValidator:
             item_errors = self.validate_mission_item(item, i)
             errors.extend(item_errors)
         
+        # Convert all relative positioning to absolute coordinates and clear relative attributes
+        coord_fixes = self._convert_relative_to_absolute_coordinates(mission)
+        fixes_applied.extend(coord_fixes)
+        
         return len(errors) == 0, errors, fixes_applied
     
     def validate_mission_item(self, item: MissionItem, index: int) -> List[str]:
@@ -452,3 +456,85 @@ class MissionValidator:
         """Update sequence numbers after insertion/modification"""
         for i, item in enumerate(mission.items):
             item.seq = i
+    
+    def _convert_relative_to_absolute_coordinates(self, mission: Mission) -> List[str]:
+        """Convert all relative positioning to absolute coordinates and clear relative attributes"""
+        fixes_applied = []
+        
+        # Get origin coordinates for conversion
+        try:
+            from config.settings import get_current_takeoff_settings
+            from core.units import calculate_absolute_coordinates
+            takeoff_settings = get_current_takeoff_settings()
+            origin_lat = takeoff_settings['latitude'] 
+            origin_lon = takeoff_settings['longitude']
+        except Exception:
+            # If we can't get takeoff settings, we can't convert
+            return fixes_applied
+        
+        last_lat, last_lon = origin_lat, origin_lon
+        
+        for item in mission.items:
+            # Skip items that don't support positioning
+            command_type = getattr(item, 'command_type', None)
+            if command_type not in ['waypoint', 'loiter', 'survey', 'takeoff']:
+                continue
+            
+            # Check if item has relative positioning that needs conversion
+            has_relative = (hasattr(item, 'distance') and item.distance is not None and
+                           hasattr(item, 'heading') and item.heading is not None)
+            
+            if has_relative:
+                # Determine reference point
+                ref_frame = getattr(item, 'relative_reference_frame', 'origin')
+                distance_units = getattr(item, 'distance_units', 'meters')
+                
+                if ref_frame == 'origin':
+                    ref_lat, ref_lon = origin_lat, origin_lon
+                elif ref_frame == 'last_waypoint':
+                    ref_lat, ref_lon = last_lat, last_lon
+                elif ref_frame == 'self':
+                    # For 'self' reference, item should already have absolute coordinates
+                    if (hasattr(item, 'latitude') and item.latitude is not None and
+                        hasattr(item, 'longitude') and item.longitude is not None):
+                        ref_lat, ref_lon = item.latitude, item.longitude
+                    else:
+                        # Fall back to last waypoint if no self coordinates
+                        ref_lat, ref_lon = last_lat, last_lon
+                else:
+                    # Unknown reference frame, use origin
+                    ref_lat, ref_lon = origin_lat, origin_lon
+                
+                # Convert relative positioning to absolute coordinates
+                try:
+                    new_lat, new_lon = calculate_absolute_coordinates(
+                        ref_lat, ref_lon, item.distance, item.heading, distance_units
+                    )
+                    
+                    # Update item with absolute coordinates
+                    item.latitude = new_lat
+                    item.longitude = new_lon
+                    
+                    # Clear relative positioning attributes
+                    item.distance = None
+                    item.heading = None
+                    item.distance_units = None
+                    item.relative_reference_frame = None
+                    
+                    # Clear MGRS since we now have lat/lon
+                    if hasattr(item, 'mgrs'):
+                        item.mgrs = None
+                    
+                    fixes_applied.append(f"Converted item {item.seq + 1} from relative to absolute coordinates: {new_lat:.6f}, {new_lon:.6f}")
+                    last_lat, last_lon = new_lat, new_lon
+                    
+                except Exception as e:
+                    # If conversion fails, leave item as is
+                    pass
+            
+            # Update last known coordinates for next item
+            elif (hasattr(item, 'latitude') and item.latitude is not None and
+                  hasattr(item, 'longitude') and item.longitude is not None):
+                last_lat, last_lon = item.latitude, item.longitude
+        
+        return fixes_applied

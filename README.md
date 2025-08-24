@@ -57,9 +57,10 @@ python3 cli.py -v mission
 - **add_loiter** - Create circular orbit patterns with specified radius and optional AI search
 - **add_survey** - Generate systematic survey patterns (center+radius or polygon boundary)
 - **add_rtl** - Return to launch and land at specified altitude
-- **update_mission_item** - Modify position, altitude, radius, heading of existing items
+- **update_mission_item** - Modify altitude, radius, and search parameters of existing items
+- **move_item** - Change geographical position using GPS, MGRS, or relative positioning  
 - **delete_mission_item** - Remove items from mission by sequence number
-- **move_mission_item** - Reorder mission items by moving to new positions
+- **reorder_item** - Reorder mission items by moving to new sequence positions
 
 ### Advanced Features
 - **VTOL Support**: Specify transition heading for takeoff (`"takeoff heading north"`)

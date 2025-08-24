@@ -241,15 +241,8 @@ class MissionManager:
         }
 
         if mission and mission.items:
-            # Use converted coordinates for display to model
-            try:
-                from config.settings import get_current_takeoff_settings
-                takeoff_settings = get_current_takeoff_settings()
-                converted_mission = mission.to_dict(convert_to_absolute=True)
-                items_to_display = [type('obj', (object,), item_dict) for item_dict in converted_mission['items']]
-            except Exception:
-                # Fallback to original mission if conversion fails
-                items_to_display = mission.items
+            # Items already have absolute coordinates after validation conversion
+            items_to_display = mission.items
             
             items = {}
             for i, item in enumerate(items_to_display):

@@ -93,7 +93,7 @@ class SurveyInput(BaseModel):
     insert_at: Optional[int] = Field(None, description="Position to insert survey in mission. Omit to add at end.")
     
     # Search parameters
-    search_target: Optional[str] = Field(None, description="Target description for AI to search for during survey (e.g., 'vehicles', 'people', 'buildings'). Do not use if user does not specify.")
+    search_target: Optional[str] = Field(None, description="Target description for AI to search for during survey (e.g., 'vehicles', 'people', 'buildings'). ONLY use if the user specifically request 'AI', 'detection', or specifies a target.")
     detection_behavior: Optional[str] = Field(None, description="Detection behavior: 'tag_and_continue' (mark targets and continue mission) or 'detect_and_monitor' (abort mission and circle detected target). Use with search_target")
 
 
