@@ -385,9 +385,13 @@ class MissionManager:
             'radius_units': settings['radius_units']
         }
         
-        # Only add heading if it's not empty
+        # Only add optional fields if they're not empty
         if settings['heading']:
             kwargs['heading'] = settings['heading']
+        if settings['search_target']:
+            kwargs['search_target'] = settings['search_target']
+        if settings['detection_behavior']:
+            kwargs['detection_behavior'] = settings['detection_behavior']
         
         action = MissionItem(**kwargs)
         

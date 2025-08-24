@@ -41,6 +41,8 @@ class AgentConfig:
     current_action_radius: float = 400.0  # For loiter/survey
     current_action_radius_units: str = "feet"
     current_action_heading: str = ""  # For takeoff VTOL direction  
+    current_action_search_target: str = ""  # AI detection target
+    current_action_detection_behavior: str = "tag_and_continue"  # AI detection behavior
     
     # Mission structure validation
     single_takeoff_only: bool = False
@@ -202,24 +204,38 @@ def reload_settings(config_path: Optional[str] = None):
     global _settings
     _settings = PX4AgentSettings.load(config_path)
 
-def update_takeoff_settings(latitude: float, longitude: float, heading: str):
+def update_takeoff_settings(latitude: float = None, longitude: float = None, heading: str = None, 
+                           altitude: float = None, altitude_units: str = None):
     """Update takeoff settings at runtime"""
     global _settings
     if _settings is None:
         _settings = PX4AgentSettings.load()
     
-    # Validate inputs
-    if not (-90 <= latitude <= 90):
-        raise ValueError(f"Latitude must be between -90 and 90, got {latitude}")
-    if not (-180 <= longitude <= 180):
-        raise ValueError(f"Longitude must be between -180 and 180, got {longitude}")
-    if not heading or not isinstance(heading, str):
-        raise ValueError("Heading must be a non-empty string")
+    # Update provided fields with validation
+    if latitude is not None:
+        if not (-90 <= latitude <= 90):
+            raise ValueError(f"Latitude must be between -90 and 90, got {latitude}")
+        _settings.agent.takeoff_initial_latitude = latitude
     
-    # Update runtime settings
-    _settings.agent.takeoff_initial_latitude = latitude
-    _settings.agent.takeoff_initial_longitude = longitude
-    _settings.agent.takeoff_default_heading = heading
+    if longitude is not None:
+        if not (-180 <= longitude <= 180):
+            raise ValueError(f"Longitude must be between -180 and 180, got {longitude}")
+        _settings.agent.takeoff_initial_longitude = longitude
+    
+    if heading is not None:
+        if not heading or not isinstance(heading, str):
+            raise ValueError("Heading must be a non-empty string")
+        _settings.agent.takeoff_default_heading = heading
+    
+    if altitude is not None:
+        if altitude <= 0:
+            raise ValueError(f"Altitude must be positive, got {altitude}")
+        _settings.agent.takeoff_default_altitude = altitude
+        
+    if altitude_units is not None:
+        if altitude_units not in ['feet', 'meters']:
+            raise ValueError(f"Altitude units must be 'feet' or 'meters', got '{altitude_units}'")
+        _settings.agent.takeoff_altitude_units = altitude_units
 
 def get_current_takeoff_settings() -> Dict[str, Any]:
     """Get current takeoff settings"""
@@ -227,13 +243,16 @@ def get_current_takeoff_settings() -> Dict[str, Any]:
     return {
         "latitude": settings.agent.takeoff_initial_latitude,
         "longitude": settings.agent.takeoff_initial_longitude,
-        "heading": settings.agent.takeoff_default_heading
+        "heading": settings.agent.takeoff_default_heading,
+        "altitude": settings.agent.takeoff_default_altitude,
+        "altitude_units": settings.agent.takeoff_altitude_units
     }
 
 def update_current_action_settings(action_type: str, latitude: float = None, longitude: float = None, 
                                  altitude: float = None, altitude_units: str = None,
                                  radius: float = None, radius_units: str = None, 
-                                 heading: str = None):
+                                 heading: str = None, search_target: str = None, 
+                                 detection_behavior: str = None):
     """Update current action settings at runtime"""
     global _settings
     if _settings is None:
@@ -260,6 +279,12 @@ def update_current_action_settings(action_type: str, latitude: float = None, lon
         _settings.agent.current_action_radius_units = radius_units
     if heading is not None:
         _settings.agent.current_action_heading = heading
+    if search_target is not None:
+        _settings.agent.current_action_search_target = search_target
+    if detection_behavior is not None:
+        if detection_behavior not in ['', 'tag_and_continue', 'detect_and_monitor']:
+            raise ValueError(f"Invalid detection behavior '{detection_behavior}'. Allowed values: '', 'tag_and_continue', 'detect_and_monitor'")
+        _settings.agent.current_action_detection_behavior = detection_behavior
 
 def get_current_action_settings() -> Dict[str, Any]:
     """Get current action settings"""
@@ -272,5 +297,7 @@ def get_current_action_settings() -> Dict[str, Any]:
         "altitude_units": settings.agent.current_action_altitude_units,
         "radius": settings.agent.current_action_radius,
         "radius_units": settings.agent.current_action_radius_units,
-        "heading": settings.agent.current_action_heading
+        "heading": settings.agent.current_action_heading,
+        "search_target": settings.agent.current_action_search_target,
+        "detection_behavior": settings.agent.current_action_detection_behavior
     }

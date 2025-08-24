@@ -45,6 +45,8 @@ class PX4AgentClient {
             takeoffCurrentSettings: document.getElementById('takeoffCurrentSettings'),
             takeoffLatitudeInput: document.getElementById('takeoffLatitudeInput'),
             takeoffLongitudeInput: document.getElementById('takeoffLongitudeInput'),
+            takeoffAltitudeInput: document.getElementById('takeoffAltitudeInput'),
+            takeoffAltitudeUnitsInput: document.getElementById('takeoffAltitudeUnitsInput'),
             takeoffHeadingInput: document.getElementById('takeoffHeadingInput'),
             setTakeoffBtn: document.getElementById('setTakeoffBtn'),
             
@@ -63,8 +65,11 @@ class PX4AgentClient {
             actionRadiusInput: document.getElementById('actionRadiusInput'),
             actionRadiusUnitsInput: document.getElementById('actionRadiusUnitsInput'),
             actionHeadingInput: document.getElementById('actionHeadingInput'),
+            actionSearchTargetInput: document.getElementById('actionSearchTargetInput'),
+            actionDetectionBehaviorInput: document.getElementById('actionDetectionBehaviorInput'),
             setCurrentActionBtn: document.getElementById('setCurrentActionBtn'),
             radiusRow: document.getElementById('radiusRow'),
+            searchRow: document.getElementById('searchRow'),
             headingRow: document.getElementById('headingRow'),
             
             // Loading elements
@@ -90,7 +95,7 @@ class PX4AgentClient {
         this.elements.setTakeoffBtn.addEventListener('click', () => this.updateTakeoffSettings());
         
         // Takeoff settings input validation
-        [this.elements.takeoffLatitudeInput, this.elements.takeoffLongitudeInput, this.elements.takeoffHeadingInput].forEach(input => {
+        [this.elements.takeoffLatitudeInput, this.elements.takeoffLongitudeInput, this.elements.takeoffAltitudeInput, this.elements.takeoffHeadingInput].forEach(input => {
             input.addEventListener('input', () => this.validateTakeoffSettingsForm());
         });
         
@@ -103,7 +108,8 @@ class PX4AgentClient {
         
         // Current action input validation
         [this.elements.actionLatitudeInput, this.elements.actionLongitudeInput, this.elements.actionAltitudeInput, 
-         this.elements.actionRadiusInput, this.elements.actionHeadingInput].forEach(input => {
+         this.elements.actionRadiusInput, this.elements.actionHeadingInput, this.elements.actionSearchTargetInput, 
+         this.elements.actionDetectionBehaviorInput].forEach(input => {
             input.addEventListener('input', () => this.validateCurrentActionForm());
         });
         
@@ -446,7 +452,7 @@ class PX4AgentClient {
             
             if (result.success) {
                 const settings = result.settings;
-                const displayText = `${settings.latitude.toFixed(6)}, ${settings.longitude.toFixed(6)}, ${settings.heading}`;
+                const displayText = `${settings.latitude.toFixed(6)}, ${settings.longitude.toFixed(6)}, ${settings.altitude} ${settings.altitude_units}, ${settings.heading}`;
                 
                 // Update expanded current settings display
                 this.elements.takeoffCurrentSettings.innerHTML = `
@@ -457,6 +463,15 @@ class PX4AgentClient {
                 
                 // Update collapsed info display
                 this.elements.takeoffCollapsedInfo.textContent = displayText;
+                
+                // Prefill form fields with current values
+                this.elements.takeoffLatitudeInput.value = settings.latitude;
+                this.elements.takeoffLongitudeInput.value = settings.longitude;
+                this.elements.takeoffAltitudeInput.value = settings.altitude;
+                this.elements.takeoffAltitudeUnitsInput.value = settings.altitude_units;
+                this.elements.takeoffHeadingInput.value = settings.heading || '';
+                
+                this.validateTakeoffSettingsForm(); // Enable button if form is now valid
             } else {
                 this.elements.takeoffCurrentSettings.innerHTML = `
                     <div class="current-value">Failed to load takeoff settings</div>
@@ -500,6 +515,8 @@ class PX4AgentClient {
                 this.elements.actionRadiusInput.value = settings.radius;
                 this.elements.actionRadiusUnitsInput.value = settings.radius_units;
                 this.elements.actionHeadingInput.value = settings.heading || '';
+                this.elements.actionSearchTargetInput.value = settings.search_target || '';
+                this.elements.actionDetectionBehaviorInput.value = settings.detection_behavior || '';
                 
                 this.updateActionTypeFields(); // Update visibility based on type
                 
@@ -521,18 +538,20 @@ class PX4AgentClient {
     validateTakeoffSettingsForm() {
         const lat = this.elements.takeoffLatitudeInput.value.trim();
         const lon = this.elements.takeoffLongitudeInput.value.trim();
+        const alt = this.elements.takeoffAltitudeInput.value.trim();
         const heading = this.elements.takeoffHeadingInput.value.trim();
         
         // Check if individual fields are valid when filled
         const latValid = !lat || (!isNaN(lat) && lat >= -90 && lat <= 90);
         const lonValid = !lon || (!isNaN(lon) && lon >= -180 && lon <= 180);
+        const altValid = !alt || (!isNaN(alt) && alt > 0);
         const headingValid = true; // Dropdown always valid
         
         // Check if at least one field has content
-        const hasContent = lat || lon || heading;
+        const hasContent = lat || lon || alt || heading;
         
         // All filled fields must be valid AND at least one field must have content
-        const formValid = latValid && lonValid && headingValid && hasContent;
+        const formValid = latValid && lonValid && altValid && headingValid && hasContent;
         this.elements.setTakeoffBtn.disabled = !formValid;
     }
     
@@ -541,18 +560,21 @@ class PX4AgentClient {
         const lon = this.elements.actionLongitudeInput.value.trim();
         const alt = this.elements.actionAltitudeInput.value.trim();
         const radius = this.elements.actionRadiusInput.value.trim();
+        const searchTarget = this.elements.actionSearchTargetInput.value.trim();
+        const detectionBehavior = this.elements.actionDetectionBehaviorInput.value.trim();
         
         // Check if individual fields are valid when filled
         const latValid = !lat || (!isNaN(lat) && lat >= -90 && lat <= 90);
         const lonValid = !lon || (!isNaN(lon) && lon >= -180 && lon <= 180);
         const altValid = !alt || (!isNaN(alt) && alt > 0);
         const radiusValid = !radius || (!isNaN(radius) && radius > 0);
+        const searchValid = true; // Search fields are always valid (text/dropdown)
         
         // Check if at least one field has content
-        const hasContent = lat || lon || alt || radius;
+        const hasContent = lat || lon || alt || radius || searchTarget || detectionBehavior;
         
         // All filled fields must be valid AND at least one field must have content
-        const formValid = latValid && lonValid && altValid && radiusValid && hasContent;
+        const formValid = latValid && lonValid && altValid && radiusValid && searchValid && hasContent;
         this.elements.setCurrentActionBtn.disabled = !formValid;
         
         return formValid;
@@ -566,6 +588,13 @@ class PX4AgentClient {
             this.elements.radiusRow.style.display = 'flex';
         } else {
             this.elements.radiusRow.style.display = 'none';
+        }
+        
+        // Show search fields for waypoint, loiter, and survey (not takeoff)
+        if (actionType === 'waypoint' || actionType === 'loiter' || actionType === 'survey') {
+            this.elements.searchRow.style.display = 'flex';
+        } else {
+            this.elements.searchRow.style.display = 'none';
         }
         
         // Show heading only for takeoff (VTOL transition direction)
@@ -585,6 +614,8 @@ class PX4AgentClient {
         const radius = this.elements.actionRadiusInput.value.trim();
         const radiusUnits = this.elements.actionRadiusUnitsInput.value;
         const heading = this.elements.actionHeadingInput.value;
+        const searchTarget = this.elements.actionSearchTargetInput.value.trim();
+        const detectionBehavior = this.elements.actionDetectionBehaviorInput.value;
         
         const requestData = {};
         
@@ -599,6 +630,8 @@ class PX4AgentClient {
         if (radius) requestData.radius = parseFloat(radius);
         if (radiusUnits) requestData.radius_units = radiusUnits;
         if (heading) requestData.heading = heading;
+        if (searchTarget) requestData.search_target = searchTarget;
+        if (detectionBehavior) requestData.detection_behavior = detectionBehavior;
         
         try {
             const response = await fetch(`${this.baseUrl}/api/settings/current-action`, {
@@ -618,6 +651,8 @@ class PX4AgentClient {
                 this.elements.actionAltitudeInput.value = '';
                 this.elements.actionRadiusInput.value = '';
                 this.elements.actionHeadingInput.value = '';
+                this.elements.actionSearchTargetInput.value = '';
+                this.elements.actionDetectionBehaviorInput.value = '';
                 
                 // Reload settings to show updated values
                 this.loadCurrentActionSettings();
@@ -642,10 +677,14 @@ class PX4AgentClient {
         const requestData = {};
         const lat = this.elements.takeoffLatitudeInput.value.trim();
         const lon = this.elements.takeoffLongitudeInput.value.trim();
+        const alt = this.elements.takeoffAltitudeInput.value.trim();
+        const altUnits = this.elements.takeoffAltitudeUnitsInput.value;
         const heading = this.elements.takeoffHeadingInput.value.trim();
         
         if (lat) requestData.latitude = parseFloat(lat);
         if (lon) requestData.longitude = parseFloat(lon);
+        if (alt) requestData.altitude = parseFloat(alt);
+        if (altUnits) requestData.altitude_units = altUnits;
         if (heading) requestData.heading = heading;
         
         try {
@@ -667,6 +706,7 @@ class PX4AgentClient {
                 const updatedFields = [];
                 if (requestData.latitude !== undefined) updatedFields.push(`Lat: ${settings.latitude.toFixed(6)}`);
                 if (requestData.longitude !== undefined) updatedFields.push(`Lon: ${settings.longitude.toFixed(6)}`);
+                if (requestData.altitude !== undefined) updatedFields.push(`Alt: ${settings.altitude} ${settings.altitude_units}`);
                 if (requestData.heading !== undefined) updatedFields.push(`Heading: ${settings.heading}`);
                 
                 this.addMessage('agent', `✅ Takeoff settings updated: ${updatedFields.join(', ')}`);
@@ -674,6 +714,7 @@ class PX4AgentClient {
                 // Clear form
                 this.elements.takeoffLatitudeInput.value = '';
                 this.elements.takeoffLongitudeInput.value = '';
+                this.elements.takeoffAltitudeInput.value = '';
                 this.elements.takeoffHeadingInput.value = '';
                 
                 // Reload current settings display

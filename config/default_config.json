@@ -34,6 +34,8 @@
     "current_action_radius": 500.0,
     "current_action_radius_units": "feet",
     "current_action_heading": "",
+    "current_action_search_target": "",
+    "current_action_detection_behavior": "tag_and_continue",
     
     "single_takeoff_only": true,
     "single_rtl_only": true,

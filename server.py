@@ -278,45 +278,44 @@ class PX4AgentServer:
                     }), 400
                 
                 # Check if at least one field is provided
-                provided_fields = [field for field in ['latitude', 'longitude', 'heading'] if field in data]
+                valid_fields = ['latitude', 'longitude', 'heading', 'altitude', 'altitude_units']
+                provided_fields = [field for field in valid_fields if field in data]
                 if not provided_fields:
                     return jsonify({
                         "success": False,
-                        "error": "At least one field (latitude, longitude, heading) must be provided"
+                        "error": f"At least one field must be provided: {', '.join(valid_fields)}"
                     }), 400
                 
-                # Get current settings first
-                current_settings = get_current_takeoff_settings()
-                
                 # Extract and validate provided fields
-                latitude = current_settings['latitude']
-                longitude = current_settings['longitude']
-                heading = current_settings['heading']
+                kwargs = {}
                 
                 try:
                     if 'latitude' in data:
-                        latitude = float(data['latitude'])
+                        kwargs['latitude'] = float(data['latitude'])
                     if 'longitude' in data:
-                        longitude = float(data['longitude'])
+                        kwargs['longitude'] = float(data['longitude'])
                     if 'heading' in data:
-                        heading = str(data['heading']).strip()
+                        kwargs['heading'] = str(data['heading']).strip()
+                    if 'altitude' in data:
+                        kwargs['altitude'] = float(data['altitude'])
+                    if 'altitude_units' in data:
+                        kwargs['altitude_units'] = str(data['altitude_units']).strip()
                 except (ValueError, TypeError) as e:
                     return jsonify({
                         "success": False,
                         "error": f"Invalid data format: {str(e)}"
                     }), 400
                 
-                # Update settings with merged values
-                update_takeoff_settings(latitude, longitude, heading)
+                # Update settings with provided values only
+                update_takeoff_settings(**kwargs)
+                
+                # Get updated settings for response
+                updated_settings = get_current_takeoff_settings()
                 
                 return jsonify({
                     "success": True,
                     "message": "Takeoff settings updated successfully",
-                    "settings": {
-                        "latitude": latitude,
-                        "longitude": longitude,
-                        "heading": heading
-                    }
+                    "settings": updated_settings
                 })
                 
             except ValueError as e:
@@ -357,7 +356,7 @@ class PX4AgentServer:
                     }), 400
                 
                 # Check if at least action type or one field is provided
-                valid_fields = ['type', 'latitude', 'longitude', 'altitude', 'altitude_units', 'radius', 'radius_units', 'heading']
+                valid_fields = ['type', 'latitude', 'longitude', 'altitude', 'altitude_units', 'radius', 'radius_units', 'heading', 'search_target', 'detection_behavior']
                 provided_fields = [field for field in valid_fields if field in data]
                 if not provided_fields:
                     return jsonify({
@@ -377,6 +376,8 @@ class PX4AgentServer:
                 radius = current_settings['radius']
                 radius_units = current_settings['radius_units']
                 heading = current_settings['heading']
+                search_target = current_settings['search_target']
+                detection_behavior = current_settings['detection_behavior']
                 
                 try:
                     if 'type' in data:
@@ -403,6 +404,10 @@ class PX4AgentServer:
                         radius_units = str(data['radius_units']).strip()
                     if 'heading' in data:
                         heading = str(data['heading']).strip()
+                    if 'search_target' in data:
+                        search_target = str(data['search_target']).strip()
+                    if 'detection_behavior' in data:
+                        detection_behavior = str(data['detection_behavior']).strip()
                         
                 except (ValueError, TypeError) as e:
                     return jsonify({
@@ -419,7 +424,9 @@ class PX4AgentServer:
                     altitude_units=altitude_units,
                     radius=radius,
                     radius_units=radius_units,
-                    heading=heading
+                    heading=heading,
+                    search_target=search_target,
+                    detection_behavior=detection_behavior
                 )
                 
                 return jsonify({
@@ -433,7 +440,9 @@ class PX4AgentServer:
                         "altitude_units": altitude_units,
                         "radius": radius,
                         "radius_units": radius_units,
-                        "heading": heading
+                        "heading": heading,
+                        "search_target": search_target,
+                        "detection_behavior": detection_behavior
                     }
                 })
                 

@@ -72,6 +72,20 @@
                             >
                         </div>
                         <div class="form-row">
+                            <input 
+                                type="number" 
+                                id="takeoffAltitudeInput" 
+                                placeholder="Altitude" 
+                                step="1" 
+                                min="0"
+                                class="param-input"
+                            >
+                            <select id="takeoffAltitudeUnitsInput" class="units-input">
+                                <option value="feet">feet</option>
+                                <option value="meters">meters</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
                             <select id="takeoffHeadingInput" class="heading-input">
                                 <option value="">Select heading...</option>
                                 <option value="north">North</option>
@@ -83,7 +97,9 @@
                                 <option value="west">West</option>
                                 <option value="northwest">Northwest</option>
                             </select>
-                            <button id="setTakeoffBtn" class="set-btn" disabled>Set Location</button>
+                        </div>
+                        <div class="form-row">
+                            <button id="setTakeoffBtn" class="set-btn" disabled>Set Takeoff</button>
                         </div>
                         <div class="form-help">
                             Set custom takeoff location and heading. Empty fields will use current values.
@@ -160,6 +176,19 @@
                             <select id="actionRadiusUnitsInput" class="units-input">
                                 <option value="feet">feet</option>
                                 <option value="meters">meters</option>
+                            </select>
+                        </div>
+                        <div class="form-row" id="searchRow" style="display: none;">
+                            <input 
+                                type="text" 
+                                id="actionSearchTargetInput" 
+                                placeholder="Search target (e.g., vehicles, people)" 
+                                class="coord-input"
+                            >
+                            <select id="actionDetectionBehaviorInput" class="units-input">
+                                <option value="">No detection</option>
+                                <option value="tag_and_continue">Tag and continue</option>
+                                <option value="detect_and_monitor">Detect and monitor</option>
                             </select>
                         </div>
                         <div class="form-row" id="headingRow">
