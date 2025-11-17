@@ -10,9 +10,22 @@ import os
 
 @dataclass
 class ModelConfig:
-    """Model configuration settings"""
+    """Model configuration settings with flexible model type support"""
+    # Model type selection
+    type: str = "ollama"  # "ollama", "tensorrt", etc.
     name: str = ""
+    
+    # Ollama-specific settings
     base_url: str = ""
+    
+    # TensorRT-specific settings
+    model_path: str = ""
+    tokenizer_path: str = ""
+    gpu_memory_fraction: float = 0.8
+    max_batch_size: int = 8
+    precision: str = "FP16"  # "FP16", "FP8", "INT4", "INT8"
+    
+    # Common generation parameters
     temperature: float = 0.0
     top_p: float = 0.0
     top_k: int = 0

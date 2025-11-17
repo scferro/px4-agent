@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  px4-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: px4-agent:tensorrt
+    container_name: px4-agent-server
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - TLLM_WORKER_USE_SINGLE_PROCESS=1
+    ports:
+      - "5000:5000"
+    volumes:
+      # Mount model directories (read-only for safety)
+      - ./models/Qwen3-4B-Instruct-2507:/models/Qwen3-4B-Instruct-2507:ro
+      - ./models/qwen3_4b_trtllm_engine:/models/qwen3_4b_trtllm_engine:ro
+      # Mount config (read-write so you can update it)
+      - ./config:/app/config
+    ipc: host
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped

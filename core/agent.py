@@ -12,10 +12,22 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from tools import get_tools_for_mode
-from models import OllamaInterface
+from llm_backends import OllamaInterface, Qwen3TensorRTInterface
 from prompts import get_system_prompt
-from config import get_settings
+from config import get_settings, get_model_settings
 from core import MissionManager
+
+def create_model_interface(mode: str):
+    """Factory function to create the appropriate model interface based on configuration"""
+    model_settings = get_model_settings(mode=mode)
+    model_type = model_settings.get('type', 'ollama').lower()
+    
+    if model_type == 'tensorrt':
+        return Qwen3TensorRTInterface(mode=mode)
+    elif model_type == 'ollama':
+        return OllamaInterface(mode=mode)
+    else:
+        raise ValueError(f"Unsupported model type: {model_type}. Supported types: ollama, tensorrt")
 
 class PX4Agent:
     """Main PX4 mission planning agent"""
@@ -25,7 +37,7 @@ class PX4Agent:
         self.verbose = verbose or self.settings.agent.verbose_default
         
         # Initialize components
-        self.ollama_interface = None  # Will be set when mode is selected
+        self.model_interface = None  # Will be set when mode is selected
         self.tools = []  # Will be set when mode is selected
         self.mission_manager = None  # Will be set when mode is selected
         
@@ -43,8 +55,8 @@ class PX4Agent:
         # Create mission manager first
         self.mission_manager = MissionManager(mode=mode)
         
-        # Create mode-specific ollama interface
-        self.ollama_interface = OllamaInterface(mode=mode)
+        # Create mode-specific model interface
+        self.model_interface = create_model_interface(mode=mode)
         
         # Create tools with mission manager (mode-specific)
         self.tools = get_tools_for_mode(self.mission_manager, mode)
@@ -61,7 +73,12 @@ class PX4Agent:
         """Initialize the LangGraph agent"""
         try:
             # Get LLM
-            llm = self.ollama_interface.get_llm()
+            if hasattr(self.model_interface, 'get_llm'):
+                # Ollama interface pattern
+                llm = self.model_interface.get_llm()
+            else:
+                # Direct LangChain BaseChatModel (TensorRT)
+                llm = self.model_interface
             
             # Create the LangGraph ReAct agent with a checkpointer for state management
             checkpointer = InMemorySaver()

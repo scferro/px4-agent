@@ -23,3 +23,7 @@ ujson>=5.0.0
 # Flask server dependencies
 flask>=3.0.0
 flask-cors>=4.0.0
+
+# TensorRT-LLM (optional for GPU acceleration)
+# Requires CUDA 12.x and compatible NVIDIA GPU
+# tensorrt-llm

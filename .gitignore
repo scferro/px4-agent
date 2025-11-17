@@ -1,1 +1,27 @@
 *__pycache__/
+
+# TensorRT engines (built locally)
+models/qwen3_4b_trtllm_engine/*
+!models/qwen3_4b_trtllm_engine/README.md
+!models/qwen3_4b_trtllm_engine/note.txt
+
+# Python virtual environments
+venv*/
+
+# Environment files
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Ignore model files
+models/qwen3_4b_trtllm*
