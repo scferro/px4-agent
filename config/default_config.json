@@ -1,30 +1,12 @@
 {
-  "model_command": {
+  "model": {
     "type": "tensorrt",
-    "name": "Qwen3-4B-Instruct",
+    "name": "qwen3:4b-instruct",
     "model_path": "/models/qwen3_4b_trtllm_engine/",
     "tokenizer_path": "/models/Qwen3-4B-Instruct-2507/",
-    "gpu_memory_fraction": 0.7,
-    "max_batch_size": 8,
-    "precision": "FP16",
     "temperature": 0.3,
     "top_p": 0.6,
     "top_k": 30,
-    "timeout": 60,
-    "max_tokens": 32768
-  },
-  "model_mission": {
-    "type": "tensorrt",
-    "name": "Qwen3-4B-Instruct",
-    "model_path": "/models/qwen3_4b_trtllm_engine/",
-    "tokenizer_path": "/models/Qwen3-4B-Instruct-2507/",
-    "gpu_memory_fraction": 0.7,
-    "max_batch_size": 8,
-    "precision": "FP16",
-    "temperature": 0.3,
-    "top_p": 0.6,
-    "top_k": 30,
-    "timeout": 60,
     "max_tokens": 32768
   },
   "agent": {

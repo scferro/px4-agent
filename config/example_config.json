@@ -1,26 +1,13 @@
 {
-  "model_command": {
+  "model": {
     "type": "tensorrt",
     "name": "Qwen3-4B-Instruct",
-    "model_path": "/models/qwen3-4b-tensorrt",
-    "gpu_memory_fraction": 0.7,
-    "max_batch_size": 4,
-    "precision": "FP16",
-    "temperature": 0.2,
+    "model_path": "/models/qwen3_4b_trtllm_engine/",
+    "tokenizer_path": "/models/Qwen3-4B-Instruct-2507/",
+    "temperature": 0.3,
     "top_p": 0.6,
     "top_k": 30,
-    "timeout": 60,
     "max_tokens": 32768
-  },
-  "model_mission": {
-    "type": "ollama", 
-    "name": "qwen3:4b-instruct",
-    "base_url": "http://localhost:11434",
-    "temperature": 0.4,
-    "top_p": 0.6,
-    "top_k": 30,
-    "timeout": 60,
-    "max_tokens": 65536
   },
   "agent": {
     "max_mission_items": 100,

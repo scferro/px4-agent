@@ -14,8 +14,8 @@ from config import get_model_settings
 class OllamaInterface:
     """Interface for Ollama model communication"""
     
-    def __init__(self, model_name: Optional[str] = None, base_url: Optional[str] = None, mode: str = "command"):
-        model_settings = get_model_settings(mode=mode)
+    def __init__(self, model_name: Optional[str] = None, base_url: Optional[str] = None):
+        model_settings = get_model_settings()
         
         self.model_name = model_name or model_settings['name']
         self.base_url = base_url or model_settings['base_url']

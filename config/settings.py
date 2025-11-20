@@ -21,15 +21,11 @@ class ModelConfig:
     # TensorRT-specific settings
     model_path: str = ""
     tokenizer_path: str = ""
-    gpu_memory_fraction: float = 0.8
-    max_batch_size: int = 8
-    precision: str = "FP16"  # "FP16", "FP8", "INT4", "INT8"
-    
+
     # Common generation parameters
     temperature: float = 0.0
     top_p: float = 0.0
     top_k: int = 0
-    timeout: int = 0
     max_tokens: Optional[int] = None
 
 @dataclass
@@ -127,8 +123,7 @@ class AgentConfig:
 @dataclass
 class PX4AgentSettings:
     """Complete PX4 Agent configuration"""
-    model_command: ModelConfig
-    model_mission: ModelConfig
+    model: ModelConfig
     agent: AgentConfig
     
     # Class variable to store singleton instance
@@ -137,29 +132,10 @@ class PX4AgentSettings:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PX4AgentSettings':
         """Create settings from dictionary"""
-        # Handle both new format (model_command/model_mission) and legacy format (model)
-        if 'model_command' in data and 'model_mission' in data:
-            # New format
-            return cls(
-                model_command=ModelConfig(**data.get('model_command', {})),
-                model_mission=ModelConfig(**data.get('model_mission', {})),
-                agent=AgentConfig(**data.get('agent', {}))
-            )
-        elif 'model' in data:
-            # Legacy format - use same model for both modes
-            model_config = ModelConfig(**data.get('model', {}))
-            return cls(
-                model_command=model_config,
-                model_mission=model_config,
-                agent=AgentConfig(**data.get('agent', {}))
-            )
-        else:
-            # No model config - use defaults
-            return cls(
-                model_command=ModelConfig(),
-                model_mission=ModelConfig(),
-                agent=AgentConfig(**data.get('agent', {}))
-            )
+        return cls(
+            model=ModelConfig(**data.get('model', {})),
+            agent=AgentConfig(**data.get('agent', {}))
+        )
     
     @classmethod
     def load(cls, config_path: Optional[str] = None) -> 'PX4AgentSettings':
@@ -184,8 +160,7 @@ class PX4AgentSettings:
         else:
             # Return default settings
             return cls(
-                model_command=ModelConfig(),
-                model_mission=ModelConfig(),
+                model=ModelConfig(),
                 agent=AgentConfig()
             )
 
@@ -199,13 +174,10 @@ def get_settings() -> PX4AgentSettings:
         _settings = PX4AgentSettings.load()
     return _settings
 
-def get_model_settings(mode: str = "command") -> Dict[str, Any]:
-    """Get model settings as dictionary for specified mode"""
+def get_model_settings() -> Dict[str, Any]:
+    """Get model settings as dictionary"""
     settings = get_settings()
-    if mode == "mission":
-        return settings.model_mission.__dict__
-    else:
-        return settings.model_command.__dict__
+    return settings.model.__dict__
 
 def get_agent_settings() -> Dict[str, Any]:
     """Get agent settings as dictionary"""

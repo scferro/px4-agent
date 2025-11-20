@@ -1,6 +1,6 @@
 """
-Qwen3 TensorRT Model Interface for PX4 Agent
-Handles communication with TensorRT-optimized Qwen3 models
+TensorRT-LLM Model Interface for PX4 Agent
+Handles communication with TensorRT-LLM optimized models
 """
 
 from typing import Dict, Any, Optional, List, Iterator, AsyncIterator, Sequence, Union, Callable
@@ -49,12 +49,12 @@ except (ImportError, OSError, Exception) as import_error:
     ModelRunner = None
     SamplingParams = None
 
-class Qwen3TensorRTInterface(BaseChatModel):
-    """Interface for TensorRT-optimized Qwen3 model communication"""
+class TensorRTInterface(BaseChatModel):
+    """Interface for TensorRT-LLM optimized model communication"""
     
-    def __init__(self, model_name: Optional[str] = None, model_path: Optional[str] = None, mode: str = "command"):
+    def __init__(self, model_name: Optional[str] = None, model_path: Optional[str] = None):
         super().__init__()
-        
+
         if not TENSORRT_AVAILABLE:
             error_message_lines = [
                 "TensorRT-LLM is not available. Please install it with:",
@@ -75,8 +75,8 @@ class Qwen3TensorRTInterface(BaseChatModel):
                 )
 
             raise ImportError("\n".join(error_message_lines))
-        
-        model_settings = get_model_settings(mode=mode)
+
+        model_settings = get_model_settings()
         
         # BaseChatModel inherits from Pydantic's BaseModel which prevents setting
         # new attributes via normal assignment. Use object.__setattr__ so these
@@ -84,14 +84,9 @@ class Qwen3TensorRTInterface(BaseChatModel):
         object.__setattr__(self, 'model_name', model_name or model_settings['name'])
         object.__setattr__(self, 'model_path', model_path or model_settings.get('model_path', ''))
         object.__setattr__(self, 'tokenizer_path', model_settings.get('tokenizer_path'))
-        gpu_mem_fraction = model_settings.get('gpu_memory_fraction', 0.8)
-        object.__setattr__(self, 'gpu_memory_fraction', gpu_mem_fraction)
-        object.__setattr__(self, 'max_batch_size', model_settings.get('max_batch_size', 8))
-        object.__setattr__(self, 'precision', model_settings.get('precision', 'FP16'))
         object.__setattr__(self, 'temperature', model_settings['temperature'])
         object.__setattr__(self, 'top_p', model_settings['top_p'])
         object.__setattr__(self, 'top_k', model_settings['top_k'])
-        object.__setattr__(self, 'timeout', model_settings['timeout'])
         object.__setattr__(self, 'max_tokens', model_settings['max_tokens'])
         
         self._llm = None
@@ -160,42 +155,81 @@ class Qwen3TensorRTInterface(BaseChatModel):
         except Exception as e:
             raise ConnectionError(f"Failed to initialize TensorRT model: {str(e)}")
     
-    def _format_messages_for_qwen(
+    def _format_messages(
         self,
         messages: List[BaseMessage],
         tool_definitions: Optional[List[Dict[str, Any]]] = None,
     ) -> str:
-        """Format messages for Qwen3 chat format"""
+        """Format messages using ChatML chat format (compatible with Qwen, Llama3, Mistral, and many other models)"""
 
         formatted_prompt = ""
 
-        if tool_definitions:
-            # Provide tool metadata up-front so the model understands available actions.
-            tools_json = json.dumps(tool_definitions, ensure_ascii=False, indent=2)
-            formatted_prompt += (
-                "<|im_start|>system\n"
-                "You can use the following tools by responding with JSON in the format\\n"
-                "{\"tool_calls\": [{\"name\": \"tool_name\", \"arguments\": {...}}]}\\n"
-                "If no tool is required, respond normally.\\n"
-                f"Available tools:\n{tools_json}\n"
-                "<|im_end|>\n"
-            )
-
+        # Extract system message content if present
+        system_content = None
+        non_system_messages = []
         for message in messages:
             if isinstance(message, SystemMessage):
-                formatted_prompt += f"<|im_start|>system\n{message.content}<|im_end|>\n"
-            elif isinstance(message, HumanMessage):
+                system_content = message.content
+            else:
+                non_system_messages.append(message)
+
+        # Combine system message and tools into single system block (matches Ollama)
+        if system_content or tool_definitions:
+            formatted_prompt += "<|im_start|>system\n"
+
+            if system_content:
+                formatted_prompt += system_content + "\n"
+
+            if tool_definitions:
+                formatted_prompt += "\n# Tools\n\n"
+                formatted_prompt += "You may call one or more functions to assist with the user query.\n\n"
+                formatted_prompt += "You are provided with function signatures within <tools></tools> XML tags:\n"
+                formatted_prompt += "<tools>\n"
+                for tool in tool_definitions:
+                    # Match Ollama's format: {"type": "function", "function": {...}}
+                    formatted_prompt += json.dumps({"type": "function", "function": tool.get("function", tool)}, ensure_ascii=False) + "\n"
+                formatted_prompt += "</tools>\n\n"
+                formatted_prompt += "For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n"
+                formatted_prompt += "<tool_call>\n"
+                formatted_prompt += '{"name": <function-name>, "arguments": <args-json-object>}\n'
+                formatted_prompt += "</tool_call>\n"
+
+            formatted_prompt += "<|im_end|>\n"
+
+        # Process remaining messages
+        for message in non_system_messages:
+            if isinstance(message, HumanMessage):
                 formatted_prompt += f"<|im_start|>user\n{message.content}<|im_end|>\n"
             elif isinstance(message, ToolMessage):
-                tool_name = getattr(message, "name", "tool") or "tool"
+                # Tool responses use role "user" with <tool_response> wrapper (matches Ollama)
                 tool_content = message.content
                 if isinstance(tool_content, (dict, list)):
                     tool_content = json.dumps(tool_content, ensure_ascii=False)
-                formatted_prompt += (
-                    f"<|im_start|>{tool_name}\n{tool_content}<|im_end|>\n"
-                )
+                formatted_prompt += "<|im_start|>user\n"
+                formatted_prompt += f"<tool_response>\n{tool_content}\n</tool_response>"
+                formatted_prompt += "<|im_end|>\n"
             elif isinstance(message, AIMessage):
-                formatted_prompt += f"<|im_start|>assistant\n{message.content}<|im_end|>\n"
+                formatted_prompt += "<|im_start|>assistant\n"
+
+                # Check if this message has tool calls
+                if hasattr(message, 'tool_calls') and message.tool_calls:
+                    # Format tool calls with XML wrapper (matches Ollama)
+                    for tool_call in message.tool_calls:
+                        tool_name = tool_call.get("name", "")
+                        tool_args = tool_call.get("args", {})
+                        if isinstance(tool_args, str):
+                            try:
+                                tool_args = json.loads(tool_args)
+                            except:
+                                pass
+                        formatted_prompt += "<tool_call>\n"
+                        formatted_prompt += json.dumps({"name": tool_name, "arguments": tool_args}, ensure_ascii=False) + "\n"
+                        formatted_prompt += "</tool_call>\n"
+                elif message.content:
+                    # Regular text response
+                    formatted_prompt += message.content
+
+                formatted_prompt += "<|im_end|>\n"
 
         # Add assistant start token for generation
         formatted_prompt += "<|im_start|>assistant\n"
@@ -296,31 +330,49 @@ class Qwen3TensorRTInterface(BaseChatModel):
         tool_definitions: List[Dict[str, Any]],
         tool_choice: Optional[Any] = None,
     ) -> List[Dict[str, Any]]:
-        """Parse tool call JSON emitted by the model."""
+        """Parse tool calls from model response - handles both XML and JSON formats."""
 
         raw_text = response_text.strip()
-        parsed = None
-        try:
-            parsed = json.loads(raw_text)
-        except json.JSONDecodeError:
-            first = raw_text.find("{")
-            last = raw_text.rfind("}")
-            if first != -1 and last != -1 and last > first:
+        tool_calls = []
+
+        # First try to extract <tool_call> XML blocks (matches Ollama format)
+        import re
+        tool_call_pattern = r'<tool_call>\s*(\{.*?\})\s*</tool_call>'
+        xml_matches = re.findall(tool_call_pattern, raw_text, re.DOTALL)
+
+        if xml_matches:
+            # Parse each XML-wrapped JSON tool call
+            for match in xml_matches:
                 try:
-                    parsed = json.loads(raw_text[first:last + 1])
+                    parsed = json.loads(match)
+                    if isinstance(parsed, dict) and "name" in parsed:
+                        tool_calls.append(parsed)
                 except json.JSONDecodeError:
+                    continue
+        else:
+            # Fallback: try parsing as plain JSON (old format)
+            parsed = None
+            try:
+                parsed = json.loads(raw_text)
+            except json.JSONDecodeError:
+                first = raw_text.find("{")
+                last = raw_text.rfind("}")
+                if first != -1 and last != -1 and last > first:
+                    try:
+                        parsed = json.loads(raw_text[first:last + 1])
+                    except json.JSONDecodeError:
+                        return []
+                else:
                     return []
+
+            if isinstance(parsed, dict) and "tool_calls" in parsed:
+                tool_calls = parsed["tool_calls"]
+            elif isinstance(parsed, list):
+                tool_calls = parsed
+            elif isinstance(parsed, dict) and {"name", "arguments"} <= parsed.keys():
+                tool_calls = [parsed]
             else:
                 return []
-
-        if isinstance(parsed, dict) and "tool_calls" in parsed:
-            tool_calls = parsed["tool_calls"]
-        elif isinstance(parsed, list):
-            tool_calls = parsed
-        elif isinstance(parsed, dict) and {"name", "arguments"} <= parsed.keys():
-            tool_calls = [parsed]
-        else:
-            return []
 
         valid_names = {
             tool.get("function", {}).get("name")
@@ -393,8 +445,8 @@ class Qwen3TensorRTInterface(BaseChatModel):
             if "tool_choice" in kwargs:
                 tool_choice = kwargs.pop("tool_choice")
 
-            # Format messages for Qwen3
-            prompt = self._format_messages_for_qwen(messages, tool_definitions)
+            # Format messages using ChatML format
+            prompt = self._format_messages(messages, tool_definitions)
 
             # Tokenize prompt
             input_ids = self._tokenizer.encode(prompt, add_special_tokens=False)
@@ -505,7 +557,7 @@ class Qwen3TensorRTInterface(BaseChatModel):
     @property
     def _llm_type(self) -> str:
         """Return type of language model"""
-        return "qwen3_tensorrt"
+        return "tensorrt_llm"
 
     @property
     def _identifying_params(self) -> Dict[str, Any]:
@@ -517,7 +569,6 @@ class Qwen3TensorRTInterface(BaseChatModel):
             "top_p": self.top_p,
             "top_k": self.top_k,
             "max_tokens": self.max_tokens,
-            "precision": self.precision,
         }
     
     def is_available(self) -> bool:

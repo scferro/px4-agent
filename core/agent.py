@@ -12,20 +12,20 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from tools import get_tools_for_mode
-from llm_backends import OllamaInterface, Qwen3TensorRTInterface
+from llm_backends import OllamaInterface, TensorRTInterface
 from prompts import get_system_prompt
 from config import get_settings, get_model_settings
 from core import MissionManager
 
-def create_model_interface(mode: str):
+def create_model_interface():
     """Factory function to create the appropriate model interface based on configuration"""
-    model_settings = get_model_settings(mode=mode)
+    model_settings = get_model_settings()
     model_type = model_settings.get('type', 'ollama').lower()
-    
+
     if model_type == 'tensorrt':
-        return Qwen3TensorRTInterface(mode=mode)
+        return TensorRTInterface()
     elif model_type == 'ollama':
-        return OllamaInterface(mode=mode)
+        return OllamaInterface()
     else:
         raise ValueError(f"Unsupported model type: {model_type}. Supported types: ollama, tensorrt")
 
@@ -35,16 +35,14 @@ class PX4Agent:
     def __init__(self, verbose: bool = False):
         self.settings = get_settings()
         self.verbose = verbose or self.settings.agent.verbose_default
-        
+
+        # Initialize single model interface once
+        self.model_interface = create_model_interface()
+
         # Initialize components
-        self.model_interface = None  # Will be set when mode is selected
         self.tools = []  # Will be set when mode is selected
         self.mission_manager = None  # Will be set when mode is selected
-        
-        # Debug: print tool info
-        if self.verbose:
-            print(f"🔧 Loaded {len(self.tools)} tools")
-        
+
         # Agent state
         self.current_mode = None
         self.agent_graph = None
@@ -54,17 +52,15 @@ class PX4Agent:
         """Setup tools and mission manager for specific mode"""
         # Create mission manager first
         self.mission_manager = MissionManager(mode=mode)
-        
-        # Create mode-specific model interface
-        self.model_interface = create_model_interface(mode=mode)
-        
-        # Create tools with mission manager (mode-specific)
+
+        # Model interface already initialized - reuse it
+        # Only recreate tools (lightweight)
         self.tools = get_tools_for_mode(self.mission_manager, mode)
-        
+
         # Debug: print tool info
         if self.verbose:
             print(f"🔧 Loaded {len(self.tools)} tools for {mode} mode")
-        
+
         # Initialize agent with new tools
         self._initialize_agent()
     

@@ -58,16 +58,6 @@ curl -X POST http://localhost:5000/api/mission \
   -d '{"message": "create mission with takeoff, waypoint at 41.8840, -87.6330, and RTL"}'
 ```
 
-### 3. Use the CLI
-
-```bash
-# Access container
-docker exec -it px4-agent-server bash
-
-# Run CLI (inside container)
-python3 cli_client.py mission
-```
-
 ### Stop the Server
 
 ```bash
@@ -529,7 +519,7 @@ docker exec -it px4-agent-server bash
 
 # Inside container
 python3
->>> from models.qwen3_tensorrt import Qwen3TensorRT
+>>> from llm_backends.tensorrt import TensorRTInterface
 ```
 
 ### Update Configuration
