@@ -138,12 +138,15 @@ class TensorRTInterface(BaseChatModel):
             self._tokenizer = AutoTokenizer.from_pretrained(str(tokenizer_path), trust_remote_code=True)
             self._set_special_token_ids(self._tokenizer, tokenizer_path)
 
+            # Store engine's max sequence length for dynamic token calculation
+            self._engine_max_seq_len = self._llm.max_seq_len
+
             # Configure sampling parameters
             sampling_kwargs: Dict[str, Any] = {
                 'temperature': self.temperature,
                 'top_p': self.top_p,
                 'top_k': self.top_k,
-                'max_tokens': min(self.max_tokens or 32768, 4096),
+                'max_tokens': self.max_tokens or 32768,
             }
             if self._eos_token_id is not None:
                 sampling_kwargs['end_id'] = self._eos_token_id
@@ -461,7 +464,9 @@ class TensorRTInterface(BaseChatModel):
             else:
                 input_ids_tensor = torch.tensor(list(input_ids), dtype=torch.int32)
 
-            max_new_tokens = min(kwargs.get('max_tokens', self.max_tokens or 32768), 512)
+            # Calculate available output tokens: engine_limit - input_length
+            input_len = len(input_ids)
+            max_new_tokens = self._engine_max_seq_len - input_len
 
             # Generate using ModelRunner
             outputs = self._llm.generate(

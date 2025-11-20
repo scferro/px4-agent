@@ -479,7 +479,7 @@ def main():
     parser.add_argument("--config", "-c", type=str, help="Path to configuration file")
     
     args = parser.parse_args()
-    
+
     # Load configuration if specified
     if args.config:
         try:
@@ -488,10 +488,13 @@ def main():
         except Exception as e:
             print(f"❌ Error loading config: {e}")
             return 1
-    
+
+    # Support environment variable for verbose mode (useful for Docker)
+    verbose = args.verbose or os.getenv('VERBOSE', '').lower() in ('true', '1', 'yes')
+
     # Create and run server
     try:
-        server = PX4AgentServer(verbose=args.verbose)
+        server = PX4AgentServer(verbose=verbose)
         server.run(host=args.host, port=args.port, debug=args.debug)
     except Exception as e:
         print(f"❌ Server failed to start: {e}")

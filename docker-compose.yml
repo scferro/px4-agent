@@ -12,6 +12,7 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - TLLM_WORKER_USE_SINGLE_PROCESS=1
+      - VERBOSE=true
     ports:
       - "5000:5000"
     volumes:

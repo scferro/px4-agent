@@ -22,7 +22,7 @@ class OllamaInterface:
         self.temperature = model_settings['temperature']
         self.top_p = model_settings['top_p']
         self.top_k = model_settings['top_k']
-        self.timeout = model_settings['timeout']
+        self.timeout = 60
         self.max_tokens = model_settings['max_tokens']
         
         self._llm = None
