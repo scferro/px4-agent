@@ -18,14 +18,14 @@ class SurveyInput(BaseModel):
     """Create survey pattern over specified area using center+radius OR corner points"""
     
     # ===== CENTER + RADIUS SURVEY =====
-    # Center location - DISCOURAGED, prefer relative positioning
+    # Center location 
     coordinates: Optional[Union[str, tuple]] = Field(None, description="GPS coordinates as 'lat,lon' for survey center (e.g., '40.7128,-74.0060'). **Avoid using unless user provides exact coordinates.** Prefer distance/heading/reference_frame for more intuitive positioning.")
     mgrs: Optional[str] = Field(None, description="MGRS coordinate for survey center. Use ONLY when user provides MGRS coordinates.")
     
-    # Relative positioning - PREFERRED method for positioning
-    distance: Optional[Union[float, str, tuple]] = Field(None, description="**PREFERRED**: Distance to survey center from reference point with optional units (e.g., '2 miles', '1000 meters', '500 ft'). Use with heading. Can set to 0.0 to survey around the reference frame.")
-    heading: Optional[str] = Field(None, description="**PREFERRED**: Direction to survey center: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Use with distance.")
-    relative_reference_frame: Optional[str] = Field(None, description="**PREFERRED**: Reference point for center distance: 'origin' (takeoff), 'last_waypoint'. You MUST pick one, make an educated guess if using relative positioning. Use 'origin' when user references 'start', 'takeoff', 'here', etc. Otherwise assume last_waypoint.")
+    # Relative positioning
+    distance: Optional[Union[float, str, tuple]] = Field(None, description="Distance to survey center from reference point with optional units (e.g., '2 miles', '1000 meters', '500 ft'). Use with heading. Can set to 0.0 to survey around the reference frame.")
+    heading: Optional[str] = Field(None, description="Direction to survey center: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Use with distance.")
+    relative_reference_frame: Optional[str] = Field(None, description="Reference point for center distance: 'origin' (takeoff), 'last_waypoint'. You MUST pick one, make an educated guess if using relative positioning. Use 'origin' when user references 'start', 'takeoff', 'here', etc. Otherwise assume last_waypoint.")
     
     # Survey area size (for center+radius mode)
     radius: Optional[Union[float, str, tuple]] = Field(None, description=f"Radius of circular survey area with optional units (e.g., '1 mile', '500 meters', '1000 ft'). Default = {_agent_settings['survey_default_radius']} {_agent_settings['survey_radius_units']}")
@@ -90,7 +90,7 @@ class SurveyInput(BaseModel):
         return (lat, lon)
     
     # Insertion position
-    insert_at: Optional[int] = Field(None, description="Position to insert survey in mission. Omit to add at end.")
+    seq: Optional[int] = Field(None, description="Position to insert survey in mission (1-based index). The survey will be inserted AT this position, shifting existing items down. Omit to add at end.")
     
     # Search parameters
     search_target: Optional[str] = Field(None, description="Target description for AI to search for during survey (e.g., 'vehicles', 'people', 'buildings'). ONLY use if the user specifically request 'AI', 'detection', or specifies a target.")
@@ -113,7 +113,7 @@ class AddSurveyTool(PX4ToolBase):
              corner3_lat: Optional[float] = None, corner3_lon: Optional[float] = None, corner3_mgrs: Optional[str] = None,
              corner4_lat: Optional[float] = None, corner4_lon: Optional[float] = None, corner4_mgrs: Optional[str] = None,
              altitude: Optional[Union[float, tuple]] = None,
-             insert_at: Optional[int] = None, search_target: Optional[str] = None, detection_behavior: Optional[str] = None) -> str:
+             seq: Optional[int] = None, search_target: Optional[str] = None, detection_behavior: Optional[str] = None) -> str:
         try:
             # Parse measurement tuples from validators
             if isinstance(distance, tuple):
@@ -188,7 +188,7 @@ class AddSurveyTool(PX4ToolBase):
                 altitude=actual_altitude,
                 radius_units=radius_units,
                 altitude_units=actual_altitude_units,
-                insert_at=insert_at,
+                insert_at=seq,
                 center_latitude=latitude,
                 center_longitude=longitude,
                 survey_radius=radius_value,

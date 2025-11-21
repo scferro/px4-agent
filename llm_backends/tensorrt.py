@@ -131,6 +131,7 @@ class TensorRTInterface(BaseChatModel):
             self._llm = ModelRunner.from_dir(
                 engine_dir=str(model_path),
                 rank=0,
+                kv_cache_free_gpu_memory_fraction=0.25,  # Balance memory usage (~4-5GB) with context length (~8K tokens)
             )
 
             # Load tokenizer separately

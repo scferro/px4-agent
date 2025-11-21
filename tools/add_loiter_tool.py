@@ -16,14 +16,14 @@ _agent_settings = get_agent_settings()
 class LoiterInput(BaseModel):
     """Create circular orbit/loiter pattern at specified location with defined radius"""
 
-    # GPS coordinates - DISCOURAGED, prefer relative positioning
+    # GPS coordinates
     coordinates: Optional[Union[str, tuple]] = Field(None, description="GPS coordinates as 'lat,lon' (e.g., '40.7128,-74.0060'). **Avoid using unless user provides exact coordinates.** Prefer distance/heading/reference_frame for more intuitive positioning.")
     mgrs: Optional[str] = Field(None, description="MGRS coordinate for orbit center. Use ONLY when user provides MGRS coordinates.")
     
-    # Relative positioning - PREFERRED method for positioning
-    distance: Optional[Union[float, str, tuple]] = Field(None, description="**PREFERRED**: Distance to orbit center from reference point with optional units (e.g., '2 miles', '1000 meters', '500 ft'). Use with heading. Can set to 0.0 to orbit AT the reference frame.")
-    heading: Optional[str] = Field(None, description="**PREFERRED**: Direction to orbit center: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Use with distance.")
-    relative_reference_frame: Optional[str] = Field(None, description="**PREFERRED**: Reference point for distance: 'origin' (takeoff), 'last_waypoint'. You MUST pick one, make an educated guess if using relative positioning. Use 'origin' when user references 'start', 'takeoff', 'here', etc. Otherwise assume last_waypoint.")
+    # Relative positioning 
+    distance: Optional[Union[float, str, tuple]] = Field(None, description="Distance to orbit center from reference point with optional units (e.g., '2 miles', '1000 meters', '500 ft'). Use with heading. Can set to 0.0 to orbit AT the reference frame.")
+    heading: Optional[str] = Field(None, description="Direction to orbit center: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Use with distance.")
+    relative_reference_frame: Optional[str] = Field(None, description="Reference point for distance: 'origin' (takeoff), 'last_waypoint'. You MUST pick one, make an educated guess if using relative positioning. Use 'origin' when user references 'start', 'takeoff', 'here', etc. Otherwise assume last_waypoint.")
     
     # Orbit radius - critical parameter often specified by user
     radius: Optional[Union[float, str, tuple]] = Field(None, description=f"Radius of the circular orbit with optional units (e.g., '500 feet', '100 meters', '0.5 miles'). Default = {_agent_settings['loiter_default_radius']} {_agent_settings['loiter_radius_units']}")
@@ -72,7 +72,7 @@ class LoiterInput(BaseModel):
         return (lat, lon)
     
     # Insertion position
-    insert_at: Optional[int] = Field(None, description="Position to insert loiter in mission. Set to specific position number or omit to add at end.")
+    seq: Optional[int] = Field(None, description="Position to insert loiter in mission (1-based index). The loiter will be inserted AT this position, shifting existing items down. Example: seq=2 means the new loiter becomes item #2, and the old item #2 becomes item #3. Omit to add at end.")
     
     # Search parameters
     search_target: Optional[str] = Field(None, description="Target description for AI to search for during survey (e.g., 'vehicles', 'people', 'buildings'). Do not use if user does not specify.")
@@ -87,10 +87,10 @@ class AddLoiterTool(PX4ToolBase):
     def __init__(self, mission_manager):
         super().__init__(mission_manager)
 
-    def _run(self, coordinates: Optional[Union[str, tuple]] = None, mgrs: Optional[str] = None, 
-             distance: Optional[Union[float, tuple]] = None, heading: Optional[str] = None, 
-             relative_reference_frame: Optional[str] = None, altitude: Optional[Union[float, tuple]] = None, 
-             radius: Optional[Union[float, tuple]] = None, insert_at: Optional[int] = None,
+    def _run(self, coordinates: Optional[Union[str, tuple]] = None, mgrs: Optional[str] = None,
+             distance: Optional[Union[float, tuple]] = None, heading: Optional[str] = None,
+             relative_reference_frame: Optional[str] = None, altitude: Optional[Union[float, tuple]] = None,
+             radius: Optional[Union[float, tuple]] = None, seq: Optional[int] = None,
              search_target: Optional[str] = None, detection_behavior: Optional[str] = None) -> str:
         try:
             # Parse measurement tuples from validators
@@ -130,7 +130,7 @@ class AddLoiterTool(PX4ToolBase):
             item = self.mission_manager.add_loiter(
                 actual_lat, actual_lon, actual_alt, actual_radius,
                 radius_units=radius_units,
-                insert_at=insert_at,
+                insert_at=seq,
                 latitude=latitude,
                 longitude=longitude,
                 altitude=altitude_value,

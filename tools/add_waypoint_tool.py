@@ -17,14 +17,14 @@ _agent_settings = get_agent_settings()
 class WaypointInput(BaseModel):
     """Navigate drone to specific location using GPS coordinates OR relative positioning"""
     
-    # GPS coordinates - DISCOURAGED, prefer relative positioning
+    # GPS coordinates
     coordinates: Optional[Union[str, tuple]] = Field(None, description="GPS coordinates as 'lat,lon' (e.g., '40.7128,-74.0060'). **Avoid using unless user provides exact coordinates.** Prefer distance/heading/reference_frame for more intuitive positioning.")
     mgrs: Optional[str] = Field(None, description="MGRS coordinate string. Use ONLY when MGRS coordinate is specified.")
     
-    # Relative positioning - PREFERRED method for positioning
-    distance: Optional[Union[float, str, tuple]] = Field(None, description="**PREFERRED**: Distance value for relative positioning with optional units (e.g., '2 miles', '1000 meters', '500 ft'). Always use with heading parameter. Can set to 0.0 to fly over the reference frame.")
-    heading: Optional[str] = Field(None, description="**PREFERRED**: Compass direction: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Always use with distance parameter.")
-    relative_reference_frame: Optional[str] = Field(None, description="**PREFERRED**: Reference point for distance: 'origin' (takeoff), 'last_waypoint'. You MUST pick one, make an educated guess if using relative positioning. Use 'origin' when user references 'start', 'takeoff', 'here', etc. Otherwise assume last_waypoint.")
+    # Relative positioning
+    distance: Optional[Union[float, str, tuple]] = Field(None, description="Distance value for relative positioning with optional units (e.g., '2 miles', '1000 meters', '500 ft'). Always use with heading parameter. Can set to 0.0 to fly over the reference frame.")
+    heading: Optional[str] = Field(None, description="Compass direction: 'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'. Always use with distance parameter.")
+    relative_reference_frame: Optional[str] = Field(None, description="Reference point for distance: 'origin' (takeoff), 'last_waypoint'. You MUST pick one, make an educated guess if using relative positioning. Use 'origin' when user references 'start', 'takeoff', 'here', etc. Otherwise assume last_waypoint.")
     
     # Altitude specification
     altitude: Optional[Union[float, str, tuple]] = Field(None, description=f"Flight altitude for this waypoint with optional units (e.g., '150 feet', '50 meters'). Specify only if user mentions altitude. Default = {_agent_settings['waypoint_default_altitude']} {_agent_settings['waypoint_altitude_units']}")
@@ -60,7 +60,7 @@ class WaypointInput(BaseModel):
         return (lat, lon)
         
     # Insertion position
-    insert_at: Optional[int] = Field(None, description="Position to insert waypoint in mission. Set to specific position number or omit to add at end.")
+    seq: Optional[int] = Field(None, description="Position to insert waypoint in mission (1-based index). The waypoint will be inserted AT this position, shifting existing items down. Omit to add at end.")
     
     # Search parameters
     search_target: Optional[str] = Field(None, description="Target description for AI to search for during survey (e.g., 'vehicles', 'people', 'buildings'). Do not use if user does not specify.")
@@ -75,10 +75,10 @@ class AddWaypointTool(PX4ToolBase):
     def __init__(self, mission_manager):
         super().__init__(mission_manager)
     
-    def _run(self, coordinates: Optional[Union[str, tuple]] = None, mgrs: Optional[str] = None, 
-             distance: Optional[Union[float, tuple]] = None, heading: Optional[str] = None, 
+    def _run(self, coordinates: Optional[Union[str, tuple]] = None, mgrs: Optional[str] = None,
+             distance: Optional[Union[float, tuple]] = None, heading: Optional[str] = None,
              relative_reference_frame: Optional[str] = None, altitude: Optional[Union[float, tuple]] = None,
-             insert_at: Optional[int] = None, search_target: Optional[str] = None, detection_behavior: Optional[str] = None) -> str:
+             seq: Optional[int] = None, search_target: Optional[str] = None, detection_behavior: Optional[str] = None) -> str:
         # Create response
         response = ""
 
@@ -114,9 +114,9 @@ class AddWaypointTool(PX4ToolBase):
             
             # Use mission manager method
             item = self.mission_manager.add_waypoint(
-                actual_lat, actual_lon, actual_alt, 
+                actual_lat, actual_lon, actual_alt,
                 altitude_units=altitude_units,
-                insert_at=insert_at,
+                insert_at=seq,
                 latitude=latitude,
                 longitude=longitude,
                 altitude=altitude_value,

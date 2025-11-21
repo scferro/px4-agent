@@ -15,7 +15,7 @@ Rules:
 - ONLY use explicitly stated parameters, DO NOT GUESS MISSING VALUES. Defaults will be filled in automatically
 - Don't summarize mission state - user sees it separately
 - Return MUPLTIPLE MISSION ITEMS to complete the user's request. A mission could be two items or ten items. Users can request many items at once, you must create a mission based on the request. 
-- Once the mission looks correct, provide a SHORT summary to the the user about what you accomplished. This will prompt the user to respond.
+- Once the mission looks correct, provide a SHORT (10-20 word) summary to the the user about what you accomplished.
 - It is important to be as acurate as possible. If you make mistakes, people will die.
 """
 
@@ -30,7 +30,7 @@ Rules:
 - Don't summarize mission state - user sees it separately
 - You MUST use tool calls to select the mission item
 - Return exactly ONE mission item ONLY
-- Once the mission looks correct, provide a SHORT summary to the the user about what you accomplished. This will prompt the user to respond.
+- Once the mission looks correct, provide a SHORT (10-20 word) summary to the the user about what you accomplished.
 - It is important to be as acurate as possible. If you make mistakes, people will die.
 """
 
